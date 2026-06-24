@@ -97,30 +97,45 @@ def fetch_source(source: Dict[str, Any]) -> List[Dict[str, Any]]:
     return normalize_entries(parsed, source, now_iso())
 
 
-def run_once(source_ids: Optional[List[str]] = None, log=None) -> Dict[str, Any]:
+def run_once(source_ids: Optional[List[str]] = None, log=None, max_workers: int = 12) -> Dict[str, Any]:
     """Fetch all (or selected) enabled sources once. Returns a summary dict.
+
+    Feeds are fetched concurrently and stored in a single batched upsert, so a full
+    sweep finishes in seconds (vs. minutes sequentially) — important for the cloud cron
+    where each round-trip to the remote DB and each slow feed otherwise adds up.
 
     `log` is an optional callable(str) for progress lines; defaults to silent.
     """
+    import socket
+    from concurrent.futures import ThreadPoolExecutor
+
     log = log or (lambda *_: None)
     conf = cfg.load_config()
+    socket.setdefaulttimeout(conf["defaults"].get("timeout_seconds", 15))  # bound slow feeds
     sources = [s for s in conf["sources"] if s["enabled"]]
     if source_ids:
         wanted = set(source_ids)
         sources = [s for s in sources if s["id"] in wanted]
 
     db.init_db()
-    total_new, ok, failed, errors = 0, 0, 0, []
-    for s in sources:
-        try:
-            rows = fetch_source(s)
-            new = db.upsert_articles(rows)
-            total_new += new
-            ok += 1
-            log("  [ok]   %-26s %3d entries, %3d new" % (s["name"], len(rows), new))
-        except Exception as exc:  # noqa: BLE001 — fail loud per-source, keep going
-            failed += 1
-            errors.append((s["name"], str(exc)))
-            log("  [FAIL] %-26s %s" % (s["name"], exc))
 
+    def work(s):
+        try:
+            return s, fetch_source(s), None
+        except Exception as exc:  # noqa: BLE001 — fail loud per-source, keep going
+            return s, None, str(exc)
+
+    rows_all, ok, failed, errors = [], 0, 0, []
+    with ThreadPoolExecutor(max_workers=max_workers) as ex:
+        for s, rows, err in ex.map(work, sources):
+            if err is not None:
+                failed += 1
+                errors.append((s["name"], err))
+                log("  [FAIL] %-26s %s" % (s["name"], err))
+            else:
+                ok += 1
+                rows_all.extend(rows)
+                log("  [ok]   %-26s %3d entries" % (s["name"], len(rows)))
+
+    total_new = db.upsert_articles(rows_all)  # single batched write
     return {"new": total_new, "ok": ok, "failed": failed, "sources": len(sources), "errors": errors}
