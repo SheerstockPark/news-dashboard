@@ -115,19 +115,25 @@ def _count(conn) -> int:
 
 
 def upsert_articles(rows: Iterable[Dict[str, Any]]) -> int:
-    """Insert articles, ignoring already-stored ids. Returns # new rows (count-based)."""
+    """Insert only genuinely-new articles. Returns # inserted.
+
+    Pre-filters against existing ids so each run writes just the fresh headlines (a handful)
+    instead of re-sending the whole batch — keeps the cloud cron fast and light on the DB.
+    """
     rows = list(rows)
     if not rows:
         return 0
     placeholders = ",".join("?" * len(_INSERT_COLS))
     sql = ("INSERT INTO articles (%s) VALUES (%s) ON CONFLICT(id) DO NOTHING"
            % (",".join(_INSERT_COLS), placeholders))
-    tuples = [tuple(_field(r, c) for c in _INSERT_COLS) for r in rows]
     with _connect() as conn:
-        before = _count(conn)
-        conn.executemany(sql, tuples)
+        existing = {r[0] for r in conn.execute("SELECT id FROM articles").fetchall()}
+        fresh = [r for r in rows if r.get("id") not in existing]
+        if not fresh:
+            return 0
+        conn.executemany(sql, [tuple(_field(r, c) for c in _INSERT_COLS) for r in fresh])
         conn.commit()
-        return _count(conn) - before
+        return len(fresh)
 
 
 def _field(row: Dict[str, Any], col: str) -> Any:
