@@ -42,6 +42,10 @@ _SCHEMA_STATEMENTS = [
 _INSERT_COLS = ["id", "source_id", "source_name", "category", "title", "summary", "url",
                 "published_at", "fetched_at", "relevance", "tags", "impact", "impact_score"]
 
+# Full column list (order matters) — selected explicitly so reads never depend on the
+# driver's cursor.description, which differs between sqlite3 and the Turso/libSQL driver.
+_ALL_COLS = _INSERT_COLS + ["llm_impact", "llm_impact_score", "llm_rationale"]
+
 
 def using_turso() -> bool:
     return bool(os.environ.get("TURSO_DATABASE_URL") and os.environ.get("TURSO_AUTH_TOKEN"))
@@ -181,14 +185,17 @@ def query_articles(
         clauses.append("(title LIKE ? OR summary LIKE ?)")
         params.extend(["%" + search + "%", "%" + search + "%"])
 
-    sql = ("SELECT * FROM articles WHERE " + " AND ".join(clauses)
+    sql = ("SELECT " + ",".join(_ALL_COLS) + " FROM articles WHERE " + " AND ".join(clauses)
            + " ORDER BY COALESCE(published_at, fetched_at) DESC LIMIT ?")
     params.append(limit)
 
     with _connect() as conn:
-        out = _dicts(conn.execute(sql, tuple(params)))
-    for d in out:
+        rows = conn.execute(sql, tuple(params)).fetchall()
+    out = []
+    for row in rows:
+        d = dict(zip(_ALL_COLS, row))
         d["tags"] = json.loads(d.get("tags") or "[]")
+        out.append(d)
     return out
 
 
@@ -196,7 +203,8 @@ def stats() -> Dict[str, Any]:
     with _connect() as conn:
         total = conn.execute("SELECT COUNT(*) FROM articles").fetchone()[0]
         latest = conn.execute("SELECT MAX(fetched_at) FROM articles").fetchone()[0]
-        per = _dicts(conn.execute(
-            "SELECT source_name, COUNT(*) AS n FROM articles GROUP BY source_name ORDER BY n DESC"))
+        per_rows = conn.execute(
+            "SELECT source_name, COUNT(*) FROM articles GROUP BY source_name ORDER BY COUNT(*) DESC"
+        ).fetchall()
     return {"total": total, "latest_fetch": latest,
-            "per_source": {r["source_name"]: r["n"] for r in per}}
+            "per_source": {r[0]: r[1] for r in per_rows}}
