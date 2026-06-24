@@ -1,6 +1,10 @@
 # News Dashboard dependencies. Install into a venv:
 #   python3 -m venv .venv && .venv/bin/pip install -r requirements.txt
+anthropic==0.112.0
 beautifulsoup4==4.15.0
+# Turso/libSQL cloud database driver — Linux-only (the cloud runners). Skipped on macOS
+# local dev, which uses the bundled sqlite3 instead. See db.py / docs/DEPLOY.md.
+libsql; platform_system == "Linux"
 feedparser==6.0.12
 lxml==6.1.1
 python-dotenv==1.2.1

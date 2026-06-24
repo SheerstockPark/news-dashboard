@@ -4,7 +4,7 @@ from typing import Any, Dict, List
 
 import yaml
 
-from . import CONFIG_PATH
+from . import CONFIG_PATH, REPO_ROOT
 
 _DEFAULTS = {"fetch_interval_seconds": 60, "timeout_seconds": 15}
 
@@ -47,3 +47,26 @@ def load_config() -> Dict[str, Any]:
 
 def enabled_sources() -> List[Dict[str, Any]]:
     return [s for s in load_config()["sources"] if s["enabled"]]
+
+
+def load_voices() -> List[Dict[str, Any]]:
+    """Load the tracked-people config for the Voices tab. Returns [] if absent."""
+    path = REPO_ROOT / "config" / "voices.yaml"
+    if not path.exists():
+        return []
+    with open(path, "r", encoding="utf-8") as fh:
+        raw = yaml.safe_load(fh) or {}
+    people = raw.get("people") or []
+    out = []
+    for p in people:
+        if not p.get("name") or not p.get("keywords"):
+            continue
+        out.append(
+            {
+                "name": p["name"],
+                "emoji": p.get("emoji", ""),
+                "keywords": [str(k).strip().lower() for k in p["keywords"] if str(k).strip()],
+                "truth_source": p.get("truth_source"),
+            }
+        )
+    return out

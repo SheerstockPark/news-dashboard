@@ -1,0 +1,31 @@
+# Key people / entities tracked in the "Voices" tab.
+# Each is matched (case-insensitive) against article titles + summaries across ALL sources.
+# `truth_source` (optional) pins a source id whose posts are that person's actual words.
+#
+# To add real X/Twitter posts later: add an RSS source in sources.yaml (needs an X API
+# token or a paid bridge like rss.app — free nitter instances are dead), then reference
+# its source id here as `truth_source`.
+
+people:
+  - name: Donald Trump
+    emoji: "🇺🇸"
+    keywords: [trump, "donald trump", potus, "white house"]
+    truth_source: truth-social-trump
+  - name: Elon Musk
+    emoji: "🚀"
+    keywords: ["elon musk", " musk", tesla, spacex, "doge "]
+  - name: Israel / Netanyahu
+    emoji: "🇮🇱"
+    keywords: [israel, israeli, netanyahu, idf, mossad, tel aviv]
+  - name: Iran
+    emoji: "🇮🇷"
+    keywords: [iran, iranian, tehran, khamenei, pezeshkian, irgc, hormuz]
+  - name: Russia / Putin
+    emoji: "🇷🇺"
+    keywords: [putin, kremlin, russia, russian, moscow, urals]
+  - name: Saudi / OPEC
+    emoji: "🛢️"
+    keywords: [saudi, opec, "opec+", aramco, "bin salman", "al-ghais", riyadh]
+  - name: Fed / Powell
+    emoji: "🏦"
+    keywords: ["federal reserve", powell, fomc, "the fed", "rate cut", "rate hike"]

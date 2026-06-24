@@ -21,19 +21,22 @@ import time
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "src"))
 
 from newsdash import config as cfg  # noqa: E402
-from newsdash import ingest  # noqa: E402
+from newsdash import db, ingest  # noqa: E402
 
 
-def _run(source_ids, quiet) -> int:
+def _run(source_ids, quiet, prune_days=0) -> int:
     log = (lambda *_: None) if quiet else (lambda m: print(m))
     summary = ingest.run_once(source_ids, log=log)
     print(
-        "Ingest complete: %d new article(s), %d/%d sources ok%s"
-        % (summary["new"], summary["ok"], summary["sources"],
+        "Ingest complete: %d new article(s), %d/%d sources ok [%s]%s"
+        % (summary["new"], summary["ok"], summary["sources"], db.backend(),
            (", %d failed" % summary["failed"] if summary["failed"] else ""))
     )
     for name, err in summary["errors"]:
         print("  [FAIL] %s: %s" % (name, err), file=sys.stderr)
+    if prune_days:
+        removed = db.prune(prune_days)
+        print("Pruned %d article(s) older than %d days." % (removed, prune_days))
     return 0 if summary["ok"] > 0 else 1
 
 
@@ -43,17 +46,19 @@ def main() -> int:
     ap.add_argument("--loop", action="store_true", help="Poll continuously.")
     ap.add_argument("--interval", type=int, default=None, help="Loop interval seconds (overrides config).")
     ap.add_argument("--quiet", action="store_true", help="Only print summary lines.")
+    ap.add_argument("--prune-days", type=int, default=0,
+                    help="After ingest, delete articles older than N days (0 = keep all).")
     args = ap.parse_args()
 
     if not args.loop:
-        return _run(args.sources, args.quiet)
+        return _run(args.sources, args.quiet, args.prune_days)
 
     interval = args.interval or cfg.load_config()["defaults"]["fetch_interval_seconds"]
     print("Looping every %ds. Ctrl-C to stop." % interval)
     try:
         while True:
             print("\n[%s] polling..." % ingest.now_iso())
-            _run(args.sources, args.quiet)
+            _run(args.sources, args.quiet, args.prune_days)
             time.sleep(interval)
     except KeyboardInterrupt:
         print("\nStopped.")

@@ -49,11 +49,20 @@ def _article_id(entry: Dict[str, Any]) -> str:
     return hashlib.sha1(basis.encode("utf-8", "ignore")).hexdigest()
 
 
+_JUNK_TITLE = re.compile(r"^\s*(\[no title\]|no title\b|rt @|rt\s|https?://)", re.IGNORECASE)
+
+
+def _is_junk_title(title: str) -> bool:
+    """Drop content-free entries (image-only Truth Social posts, bare reposts, link-only)."""
+    t = (title or "").strip()
+    return len(t) < 8 or bool(_JUNK_TITLE.match(t))
+
+
 def normalize_entries(parsed, source: Dict[str, Any], fetched_at: str) -> List[Dict[str, Any]]:
     rows: List[Dict[str, Any]] = []
     for entry in parsed.entries:
         title = _clean(entry.get("title", ""), 400)
-        if not title:
+        if _is_junk_title(title):
             continue
         summary = _clean(entry.get("summary", "") or entry.get("description", ""))
         relevance, tags = tagging.score(title, summary, source["weight"])

@@ -1,0 +1,32 @@
+name: Ingest news → Turso
+
+# The "living" engine: pulls fresh headlines into the cloud database on a schedule,
+# so the deployed dashboard stays current even when nobody is looking at it.
+on:
+  schedule:
+    - cron: "*/20 * * * *"   # every 20 min. For a PRIVATE repo, widen to */30 to stay
+                             # within free Actions minutes; PUBLIC repos are unlimited.
+  workflow_dispatch: {}      # manual "Run workflow" button
+
+# Avoid overlapping runs if one is slow.
+concurrency:
+  group: ingest
+  cancel-in-progress: false
+
+jobs:
+  ingest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+      - name: Fetch feeds into Turso + prune old rows
+        env:
+          TURSO_DATABASE_URL: ${{ secrets.TURSO_DATABASE_URL }}
+          TURSO_AUTH_TOKEN: ${{ secrets.TURSO_AUTH_TOKEN }}
+        run: python tools/fetch_rss.py --quiet --prune-days 14

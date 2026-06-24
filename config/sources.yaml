@@ -112,3 +112,228 @@ sources:
     category: social
     weight: 2
     enabled: true
+
+  # ================= Expanded coverage (validated 2026-06-24) =================
+  # --- Energy specialist ---
+  - id: energyvoice
+    name: Energy Voice
+    url: https://www.energyvoice.com/feed/
+    category: energy
+    weight: 2
+    enabled: true
+  - id: ngi
+    name: Natural Gas Intelligence
+    url: https://www.naturalgasintel.com/feed/
+    category: energy
+    weight: 2
+    enabled: true
+  - id: eia-press
+    name: EIA Press
+    url: https://www.eia.gov/rss/press_rss.xml
+    category: energy
+    weight: 2
+    enabled: true
+  - id: powereng
+    name: Power Engineering
+    url: https://www.power-eng.com/feed/
+    category: energy
+    weight: 1
+    enabled: true
+
+  # --- Commodities / metals ---
+  - id: mining
+    name: Mining.com
+    url: https://www.mining.com/feed/
+    category: commodities
+    weight: 2
+    enabled: true
+
+  # --- Shipping & freight (tankers, Hormuz, Suez) ---
+  - id: maritime-exec
+    name: Maritime Executive
+    url: https://www.maritime-executive.com/articles.rss
+    category: shipping
+    weight: 2
+    enabled: true
+  - id: gcaptain
+    name: gCaptain
+    url: https://gcaptain.com/feed/
+    category: shipping
+    weight: 2
+    enabled: true
+  - id: splash247
+    name: Splash247
+    url: https://splash247.com/feed/
+    category: shipping
+    weight: 2
+    enabled: true
+  - id: hellenic
+    name: Hellenic Shipping News
+    url: https://www.hellenicshippingnews.com/feed/
+    category: shipping
+    weight: 2
+    enabled: true
+
+  # --- Middle East / Russia desks (oil-critical geopolitics) ---
+  - id: arabnews
+    name: Arab News
+    url: https://www.arabnews.com/rss.xml
+    category: geopolitics
+    weight: 2
+    enabled: true
+  - id: middleeasteye
+    name: Middle East Eye
+    url: https://www.middleeasteye.net/rss
+    category: geopolitics
+    weight: 2
+    enabled: true
+  - id: timesofisrael
+    name: Times of Israel
+    url: https://www.timesofisrael.com/feed/
+    category: geopolitics
+    weight: 1
+    enabled: true
+  - id: jpost
+    name: Jerusalem Post
+    url: https://www.jpost.com/rss/rssfeedsfrontpage.aspx
+    category: geopolitics
+    weight: 1
+    enabled: true
+  - id: tass
+    name: TASS (Russia)
+    url: https://tass.com/rss/v2.xml
+    category: geopolitics
+    weight: 2
+    enabled: true
+  - id: moscowtimes
+    name: Moscow Times
+    url: https://www.themoscowtimes.com/rss/news
+    category: geopolitics
+    weight: 1
+    enabled: true
+  - id: france24
+    name: France 24
+    url: https://www.france24.com/en/rss
+    category: geopolitics
+    weight: 1
+    enabled: true
+  - id: dw
+    name: Deutsche Welle
+    url: https://rss.dw.com/rdf/rss-en-all
+    category: geopolitics
+    weight: 1
+    enabled: true
+  - id: cnbc-world
+    name: CNBC World
+    url: https://www.cnbc.com/id/100727362/device/rss/rss.html
+    category: geopolitics
+    weight: 1
+    enabled: true
+  - id: thehill
+    name: The Hill
+    url: https://thehill.com/rss/syndicator/19110
+    category: geopolitics
+    weight: 1
+    enabled: true
+  - id: npr-world
+    name: NPR World
+    url: https://feeds.npr.org/1004/rss.xml
+    category: geopolitics
+    weight: 1
+    enabled: true
+  - id: sky-world
+    name: Sky News World
+    url: https://feeds.skynews.com/feeds/rss/world.xml
+    category: geopolitics
+    weight: 1
+    enabled: true
+
+  # --- Macro / economy ---
+  - id: guardian-business
+    name: Guardian Business
+    url: https://www.theguardian.com/uk/business/rss
+    category: macro
+    weight: 1
+    enabled: true
+  - id: cnbc-economy
+    name: CNBC Economy
+    url: https://www.cnbc.com/id/20910258/device/rss/rss.html
+    category: macro
+    weight: 1
+    enabled: true
+  - id: investing-economy
+    name: Investing.com Economy
+    url: https://www.investing.com/rss/news_25.rss
+    category: macro
+    weight: 1
+    enabled: true
+  - id: sky-business
+    name: Sky News Business
+    url: https://feeds.skynews.com/feeds/rss/business.xml
+    category: macro
+    weight: 1
+    enabled: true
+
+  # --- Markets ---
+  - id: cnbc-markets
+    name: CNBC Markets
+    url: https://www.cnbc.com/id/15839135/device/rss/rss.html
+    category: markets
+    weight: 1
+    enabled: true
+  - id: mw-pulse
+    name: MarketWatch Market Pulse
+    url: http://feeds.marketwatch.com/marketwatch/marketpulse/
+    category: markets
+    weight: 1
+    enabled: true
+  - id: mw-realtime
+    name: MarketWatch Real-time
+    url: http://feeds.marketwatch.com/marketwatch/realtimeheadlines/
+    category: markets
+    weight: 1
+    enabled: true
+  - id: fxstreet
+    name: FXStreet
+    url: https://www.fxstreet.com/rss/news
+    category: markets
+    weight: 1
+    enabled: true
+  - id: zerohedge
+    name: ZeroHedge
+    url: https://feeds.feedburner.com/zerohedge/feed
+    category: markets
+    weight: 1
+    enabled: true
+  - id: yahoofin
+    name: Yahoo Finance
+    url: https://finance.yahoo.com/news/rssindex
+    category: markets
+    weight: 1
+    enabled: true
+  - id: investing-forex
+    name: Investing.com Forex
+    url: https://www.investing.com/rss/news_1.rss
+    category: markets
+    weight: 1
+    enabled: true
+  - id: investing-stocks
+    name: Investing.com Stocks
+    url: https://www.investing.com/rss/news_285.rss
+    category: markets
+    weight: 1
+    enabled: true
+  - id: seekingalpha
+    name: Seeking Alpha
+    url: https://seekingalpha.com/market_currents.xml
+    category: markets
+    weight: 1
+    enabled: true
+
+  # --- Weather (Gulf / Atlantic supply disruption) ---
+  - id: nhc-atlantic
+    name: NOAA Hurricane Center
+    url: https://www.nhc.noaa.gov/index-at.xml
+    category: weather
+    weight: 1
+    enabled: true

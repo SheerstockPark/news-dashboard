@@ -10,6 +10,7 @@ __pycache__/
 venv/
 credentials.json
 token.json
+.streamlit/secrets.toml
 .DS_Store
 .idea/
 .vscode/
