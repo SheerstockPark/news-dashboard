@@ -22,8 +22,8 @@ jobs:
         with:
           python-version: "3.11"
           cache: pip
-      - name: Install dependencies
-        run: pip install -r requirements.txt
+      - name: Install dependencies (lean — ingest only)
+        run: pip install -r requirements-ingest.txt
       - name: Fetch feeds into Turso + prune old rows
         env:
           TURSO_DATABASE_URL: ${{ secrets.TURSO_DATABASE_URL }}

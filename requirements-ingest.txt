@@ -1,0 +1,6 @@
+# Minimal deps for the scheduled ingest cron (no Streamlit/pandas/charts needed).
+# Keeps the GitHub Action install step to a few seconds. See .github/workflows/ingest.yml.
+feedparser==6.0.12
+PyYAML==6.0.3
+requests==2.32.5
+libsql; platform_system == "Linux"
