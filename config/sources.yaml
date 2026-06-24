@@ -337,3 +337,23 @@ sources:
     category: weather
     weight: 1
     enabled: true
+
+  # --- Aggregators (Google News topic searches — broad cross-source coverage) ---
+  - id: gnews-crude
+    name: Google News · Crude
+    url: https://news.google.com/rss/search?q=crude%20oil%20OR%20brent%20OR%20wti%20when:2d&hl=en-US&gl=US&ceid=US:en
+    category: energy
+    weight: 2
+    enabled: true
+  - id: gnews-opec
+    name: Google News · OPEC
+    url: https://news.google.com/rss/search?q=OPEC%20OR%20%22OPEC%2B%22%20oil%20when:3d&hl=en-US&gl=US&ceid=US:en
+    category: energy
+    weight: 2
+    enabled: true
+  - id: gnews-natgas
+    name: Google News · Nat Gas
+    url: https://news.google.com/rss/search?q=natural%20gas%20OR%20LNG%20prices%20when:2d&hl=en-US&gl=US&ceid=US:en
+    category: energy
+    weight: 1
+    enabled: true

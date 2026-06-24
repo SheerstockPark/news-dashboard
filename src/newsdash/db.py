@@ -57,14 +57,18 @@ def backend() -> str:
 
 @contextmanager
 def _connect():
+    conn = None
     if using_turso():
-        import libsql  # cloud-only dependency (Linux wheel); never imported locally
+        try:
+            import libsql  # cloud-only dependency (Linux wheel)
 
-        conn = libsql.connect(
-            database=os.environ["TURSO_DATABASE_URL"],
-            auth_token=os.environ["TURSO_AUTH_TOKEN"],
-        )
-    else:
+            conn = libsql.connect(
+                database=os.environ["TURSO_DATABASE_URL"],
+                auth_token=os.environ["TURSO_AUTH_TOKEN"],
+            )
+        except ImportError:
+            conn = None  # Turso configured but driver absent (e.g. local macOS) -> local SQLite
+    if conn is None:
         DATA_DIR.mkdir(parents=True, exist_ok=True)
         conn = sqlite3.connect(str(DB_PATH), timeout=30)
         try:

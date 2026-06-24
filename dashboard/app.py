@@ -38,7 +38,7 @@ except Exception:
 from newsdash import config as cfg  # noqa: E402
 from newsdash import ask as askmod  # noqa: E402
 from newsdash import brief as briefmod  # noqa: E402
-from newsdash import db, eia, ingest, prices  # noqa: E402
+from newsdash import db, eia, events, ingest, prices  # noqa: E402
 
 st.set_page_config(page_title="Sheerstock Park — Oil Desk Terminal", page_icon="🛢️", layout="wide")
 
@@ -111,6 +111,12 @@ html, body, [class*="css"], .stApp, .stMarkdown { font-family:'Inter',-apple-sys
 
 /* favicons */
 .fav { width:14px; height:14px; border-radius:3px; vertical-align:-2px; margin-right:5px; opacity:.9; }
+
+/* events calendar */
+.evts { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:12px; }
+.evt { background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:7px 13px; min-width:120px; }
+.evt-n { font-size:.76rem; color:#cbd5e1; font-weight:600; }
+.evt-c { font-size:.72rem; color:var(--accent); font-weight:700; margin-top:2px; }
 
 /* featured hero story */
 .hero { position:relative; background:linear-gradient(120deg,#15202b 0%, var(--panel) 70%);
@@ -204,6 +210,11 @@ def load_spreads():
 @st.cache_data(ttl=1800, show_spinner=False)
 def load_eia():
     return eia.get_inventories()
+
+
+@st.cache_data(ttl=900, show_spinner=False)
+def load_history_long(symbols, period):
+    return prices.get_history(list(symbols), period=period, interval="1d")
 
 
 @st.cache_data(ttl=20, show_spinner=False)
@@ -434,6 +445,7 @@ with st.sidebar:
     use_llm = st.toggle("AI sentiment (when scored)", value=True,
                         help="Use Claude's crude-impact verdict where available; "
                              "falls back to the keyword tagger. Run tools/enrich_sentiment.py to score.")
+    compact = st.toggle("Compact view", value=False, help="Denser cards, hide summaries.")
     if st.button("⟳ Fetch latest now", use_container_width=True):
         with st.spinner("Fetching feeds…"):
             s = ingest.run_once()
@@ -452,6 +464,12 @@ with st.sidebar:
                            default=[], format_func=lambda i: src_label.get(i, i))
     f_search = st.text_input("Search", placeholder="e.g. Hormuz, OPEC, diesel")
     f_limit = st.slider("Max headlines", 20, 400, 120, 20)
+
+if compact:
+    st.markdown("<style>.card{padding:8px 14px;margin-bottom:6px} .card a{font-size:.95rem}"
+                " .summary{display:none} .hero{padding:12px 16px} .hero a{font-size:1.1rem}</style>",
+                unsafe_allow_html=True)
+
 
 # --- live region: a fragment that reruns in-session (preserves active tab + scroll) ---
 def terminal():
@@ -472,8 +490,10 @@ def terminal():
     if use_llm and not corpus.empty and "llm_impact" in corpus.columns:
         corpus = corpus.copy()
         has = corpus["llm_impact"].notna() & (corpus["llm_impact"] != "")
-        corpus.loc[has, "impact"] = corpus.loc[has, "llm_impact"]
-        corpus.loc[has, "impact_score"] = corpus.loc[has, "llm_impact_score"].fillna(0)
+        llm_sc = pd.to_numeric(corpus["llm_impact_score"], errors="coerce").fillna(0)
+        corpus["impact"] = corpus["impact"].where(~has, corpus["llm_impact"])
+        corpus["impact_score"] = (pd.to_numeric(corpus["impact_score"], errors="coerce").fillna(0)
+                                  .where(~has, llm_sc).astype(int))
 
     _banner = asset_data_uri("banner.jpg", "image/jpeg")
     _bg = ('<img class="bg" src="%s">' % _banner) if _banner else ""
@@ -610,6 +630,39 @@ def terminal():
         ):
             col.markdown('<div class="kpi"><div class="v">%s</div><div class="l">%s</div></div>'
                          % (val, label), unsafe_allow_html=True)
+
+        # active-filter chips + CSV export
+        active = []
+        if f_sort != "Smart":
+            active.append("sort: " + f_sort)
+        if f_min_rel:
+            active.append("relevance ≥ %d" % f_min_rel)
+        if f_impact != "all":
+            active.append(f_impact)
+        if f_cats:
+            active.append("cat: " + ", ".join(f_cats))
+        if f_src:
+            active.append("src: " + ", ".join(src_label.get(s, s) for s in f_src))
+        if f_search.strip():
+            active.append('"%s"' % f_search.strip())
+        fc, dc = st.columns([5, 1])
+        with fc:
+            if active:
+                st.markdown('<div style="margin:6px 0">' + "".join(
+                    '<span class="chip" style="margin-right:6px">%s</span>' % html.escape(x)
+                    for x in active) + "</div>", unsafe_allow_html=True)
+        with dc:
+            if articles:
+                import io
+                buf = io.StringIO()
+                buf.write("published,source,category,relevance,impact,title,url\n")
+                for a in articles:
+                    t = (a["title"] or "").replace('"', "'")
+                    buf.write('%s,%s,%s,%d,%s,"%s",%s\n' % (
+                        a.get("published_at") or a.get("fetched_at") or "", a["source_name"],
+                        a["category"], a["relevance"], a.get("impact", ""), t, a.get("url", "")))
+                st.download_button("⬇ CSV", buf.getvalue(), file_name="oil_desk_feed.csv",
+                                   mime="text/csv", use_container_width=True)
         st.markdown("<hr>", unsafe_allow_html=True)
 
         if not articles:
@@ -662,10 +715,9 @@ def terminal():
                 st.altair_chart(style_chart(area, 230), use_container_width=True)
             with c2:
                 st.markdown('<div class="sec">Net crude tone over time</div>', unsafe_allow_html=True)
-                sign = (d.assign(bucket=d["ts"].dt.floor(freq))
-                          .groupby("bucket")
-                          .apply(lambda x: int((x["impact"] == "bullish").sum() - (x["impact"] == "bearish").sum()))
-                          .reset_index(name="net"))
+                _g = d.assign(bucket=d["ts"].dt.floor(freq),
+                              _pol=(d["impact"] == "bullish").astype(int) - (d["impact"] == "bearish").astype(int))
+                sign = _g.groupby("bucket")["_pol"].sum().reset_index(name="net")
                 bars = alt.Chart(sign).mark_bar().encode(
                     x=alt.X("bucket:T", title=None),
                     y=alt.Y("net:Q", title="bull − bear"),
@@ -775,6 +827,16 @@ def terminal():
 
     # ============================================================ MARKETS
     with tab_markets:
+        _now2 = datetime.now(timezone.utc)
+        evs = events.upcoming(_now2, 6)
+        if evs:
+            st.markdown('<div class="sec">📅 Upcoming catalysts</div>', unsafe_allow_html=True)
+            ev_html = "".join(
+                '<div class="evt"><div class="evt-n">%s</div><div class="evt-c">%s</div></div>'
+                % (html.escape(e["name"]), events.countdown(e["when"], _now2)) for e in evs
+            )
+            st.markdown('<div class="evts">%s</div>' % ev_html, unsafe_allow_html=True)
+
         if quotes:
             st.markdown('<div class="sec">Live commodity & FX tape</div>', unsafe_allow_html=True)
             mc = st.columns(len(quotes))
@@ -810,6 +872,51 @@ def terminal():
             st.altair_chart(style_chart(line, 240), use_container_width=True)
         else:
             st.caption("Intraday series unavailable right now.")
+
+        # historical Brent/WTI with news overlay
+        st.markdown('<div class="sec">Brent / WTI history · headlines overlaid</div>',
+                    unsafe_allow_html=True)
+        per = st.radio("Period", ["1mo", "3mo", "1y"], horizontal=True, key="hist_per",
+                       label_visibility="collapsed")
+        lh = load_history_long(("BZ=F", "CL=F"), per)
+        hframes = []
+        for sym, lab in (("BZ=F", "Brent"), ("CL=F", "WTI")):
+            ser = lh.get(sym, [])
+            if ser:
+                hd = pd.DataFrame(ser, columns=["t", "price"])
+                hd["t"] = pd.to_datetime(hd["t"], utc=True)
+                hd["inst"] = lab
+                hframes.append(hd)
+        if hframes:
+            allh = pd.concat(hframes, ignore_index=True)
+            line = alt.Chart(allh).mark_line(strokeWidth=2).encode(
+                x=alt.X("t:T", title=None),
+                y=alt.Y("price:Q", title="$/bbl", scale=alt.Scale(zero=False)),
+                color=alt.Color("inst:N", scale=alt.Scale(domain=["Brent", "WTI"],
+                                range=[ACCENT, "#4a9eff"]), legend=alt.Legend(title=None, orient="top")),
+                tooltip=["inst:N", alt.Tooltip("price:Q", format=".2f")])
+            layers = [line]
+            # overlay top headlines on the Brent line
+            brent = allh[allh["inst"] == "Brent"][["t", "price"]].sort_values("t")
+            if not brent.empty and not corpus.empty:
+                wnd = corpus[(corpus["ts"] >= brent["t"].min()) & (corpus["relevance"] >= 50)].copy()
+                wnd = wnd.sort_values(["relevance", "ts"], ascending=False).head(20)
+                if not wnd.empty:
+                    mk = pd.merge_asof(wnd.sort_values("ts")[["ts", "title", "impact"]],
+                                       brent.rename(columns={"t": "ts"}), on="ts", direction="nearest")
+                    cmap = {"bullish": BULL, "bearish": BEAR, "neutral": "#cbd5e1"}
+                    mk["c"] = mk["impact"].map(cmap).fillna("#cbd5e1")
+                    pts = alt.Chart(mk).mark_point(size=70, filled=True, opacity=0.9).encode(
+                        x="ts:T", y="price:Q",
+                        color=alt.Color("c:N", scale=None),
+                        tooltip=[alt.Tooltip("title:N", title="headline"),
+                                 alt.Tooltip("impact:N"), alt.Tooltip("ts:T", title="date")])
+                    layers.append(pts)
+            st.altair_chart(style_chart(alt.layer(*layers), 260), use_container_width=True)
+            st.caption("● dots = high-relevance headlines (last ~14 days) on the Brent line — "
+                       "green bullish, red bearish. Hover for the story.")
+        else:
+            st.caption("Historical series unavailable right now.")
 
         spreads = load_spreads()
         equities = load_equities()
