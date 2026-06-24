@@ -4,8 +4,8 @@ name: Ingest news → Turso
 # so the deployed dashboard stays current even when nobody is looking at it.
 on:
   schedule:
-    - cron: "*/20 * * * *"   # every 20 min. For a PRIVATE repo, widen to */30 to stay
-                             # within free Actions minutes; PUBLIC repos are unlimited.
+    - cron: "*/30 * * * *"   # every 30 min — fits free Actions minutes on a PRIVATE repo.
+                             # On a PUBLIC repo you can tighten to "*/15" (unlimited minutes).
   workflow_dispatch: {}      # manual "Run workflow" button
 
 # Avoid overlapping runs if one is slow.
