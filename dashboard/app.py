@@ -455,8 +455,10 @@ with st.sidebar:
 
 # --- live region: a fragment that reruns in-session (preserves active tab + scroll) ---
 def terminal():
-    # in-process ingest on load (cached so it fires ~once per 90s window)
-    if live_ingest:
+    # In-process ingest on load — LOCAL ONLY. In the cloud (Turso) the GitHub Actions cron
+    # keeps the DB fresh, so the app stays read-only and renders instantly instead of
+    # blocking for minutes while it fetches 50 feeds over the network.
+    if live_ingest and not db.using_turso():
         try:
             from time import time as _t
             auto_ingest(int(_t()) // 90)
