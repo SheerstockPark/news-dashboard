@@ -1,0 +1,39 @@
+name: Daily Oil-Desk Digest
+
+# Serverless scheduler for the daily email digest. Runs ingest + builds/sends the digest.
+on:
+  schedule:
+    - cron: "0 6 * * *"   # 06:00 UTC daily — adjust to your desk's morning
+  workflow_dispatch: {}    # allow manual "Run workflow" from the Actions tab
+
+jobs:
+  digest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Build and email digest
+        env:
+          SMTP_HOST: ${{ secrets.SMTP_HOST }}
+          SMTP_PORT: ${{ secrets.SMTP_PORT }}
+          SMTP_USER: ${{ secrets.SMTP_USER }}
+          SMTP_PASS: ${{ secrets.SMTP_PASS }}
+          DIGEST_TO: ${{ secrets.DIGEST_TO }}
+          DIGEST_FROM: ${{ secrets.DIGEST_FROM }}
+        run: python tools/build_digest.py --fetch --email --hours 24 --top 25
+
+      - name: Upload digest HTML artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: digest-html
+          path: reports/*.html
+          if-no-files-found: warn

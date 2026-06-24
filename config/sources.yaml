@@ -1,0 +1,114 @@
+# News sources for the oil-trading dashboard.
+# Each source is polled for its RSS/Atom feed. Add/disable sources by editing this file —
+# no code changes needed. `category` drives default tagging; `weight` boosts ranking.
+#
+# Categories: energy | commodities | markets | macro | geopolitics | general
+#
+# NOTE: Reuters and Bloomberg discontinued public RSS. Their headlines are picked up
+# indirectly via aggregators (Investing.com, MarketWatch) and wire-adjacent feeds.
+# Truth Social has no RSS — see workflows/ for the planned scraping tool (future).
+
+defaults:
+  fetch_interval_seconds: 60     # target refresh cadence when running in --loop mode
+  timeout_seconds: 15
+
+sources:
+  # --- Energy / oil & gas specialist ---
+  - id: oilprice
+    name: OilPrice.com
+    url: https://oilprice.com/rss/main
+    category: energy
+    weight: 3
+    enabled: true
+  - id: rigzone
+    name: Rigzone
+    url: https://www.rigzone.com/news/rss/rigzone_latest.aspx
+    category: energy
+    weight: 3
+    enabled: true
+  - id: worldoil
+    name: World Oil
+    url: https://www.worldoil.com/rss?feed=news
+    category: energy
+    weight: 3
+    enabled: true
+  - id: eia-today
+    name: EIA Today in Energy
+    url: https://www.eia.gov/rss/todayinenergy.xml
+    category: energy
+    weight: 3
+    enabled: true
+  - id: cnbc-energy
+    name: CNBC Energy
+    url: https://www.cnbc.com/id/19836768/device/rss/rss.html
+    category: energy
+    weight: 2
+    enabled: true
+
+  # --- Commodities / markets ---
+  - id: investing-commodities
+    name: Investing.com Commodities
+    url: https://www.investing.com/rss/news_11.rss
+    category: commodities
+    weight: 2
+    enabled: true
+  - id: marketwatch-top
+    name: MarketWatch Top Stories
+    url: http://feeds.marketwatch.com/marketwatch/topstories/
+    category: markets
+    weight: 2
+    enabled: true
+  - id: cnbc-finance
+    name: CNBC Finance
+    url: https://www.cnbc.com/id/10000664/device/rss/rss.html
+    category: markets
+    weight: 1
+    enabled: true
+  - id: nyt-business
+    name: NYT Business
+    url: https://rss.nytimes.com/services/xml/rss/nyt/Business.xml
+    category: markets
+    weight: 1
+    enabled: true
+
+  # --- Macro / world / geopolitics ---
+  - id: bbc-business
+    name: BBC Business
+    url: https://feeds.bbci.co.uk/news/business/rss.xml
+    category: macro
+    weight: 1
+    enabled: true
+  - id: bbc-world
+    name: BBC World
+    url: https://feeds.bbci.co.uk/news/world/rss.xml
+    category: geopolitics
+    weight: 1
+    enabled: true
+  - id: aljazeera
+    name: Al Jazeera
+    url: https://www.aljazeera.com/xml/rss/all.xml
+    category: geopolitics
+    weight: 2
+    enabled: true
+  - id: guardian-world
+    name: Guardian World
+    url: https://www.theguardian.com/world/rss
+    category: geopolitics
+    weight: 1
+    enabled: true
+  - id: nyt-energy-env
+    name: NYT Energy & Environment
+    url: https://rss.nytimes.com/services/xml/rss/nyt/EnergyEnvironment.xml
+    category: energy
+    weight: 2
+    enabled: true
+
+  # --- Social / political signal ---
+  # Trump's Truth Social posts via the trumpstruth.org public archive feed
+  # (the direct truthsocial.com API is Cloudflare-blocked; this RSS mirror is not).
+  - id: truth-social-trump
+    name: Truth Social (Trump)
+    url: https://trumpstruth.org/feed
+    category: social
+    weight: 2
+    enabled: true
