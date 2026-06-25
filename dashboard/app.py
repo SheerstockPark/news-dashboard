@@ -38,7 +38,8 @@ except Exception:
 from newsdash import config as cfg  # noqa: E402
 from newsdash import ask as askmod  # noqa: E402
 from newsdash import brief as briefmod  # noqa: E402
-from newsdash import db, eia, events, ingest, prices  # noqa: E402
+from newsdash import db, eia, email_render, events, ingest, mailer, prices  # noqa: E402
+from newsdash import alerts as alertsmod  # noqa: E402
 
 st.set_page_config(page_title="Sheerstock Park — Oil Desk Terminal", page_icon="🛢️", layout="wide")
 
@@ -200,6 +201,16 @@ def load_history(symbols):
 @st.cache_data(ttl=120, show_spinner=False)
 def load_equities():
     return prices.get_quotes(prices.EQUITIES)
+
+
+@st.cache_data(ttl=120, show_spinner=False)
+def load_market_movers():
+    return prices.get_quotes(prices.MARKET_MOVERS)
+
+
+@st.cache_data(ttl=1800, show_spinner=False)
+def load_inventories():
+    return eia.get_inventories()
 
 
 @st.cache_data(ttl=120, show_spinner=False)
@@ -559,28 +570,57 @@ def terminal():
         left, right = st.columns([4, 1])
         with right:
             if briefmod.available():
-                if st.button("✨ Generate", use_container_width=True):
-                    with st.spinner("Writing the desk brief…"):
-                        arts = db.query_articles(limit=40, min_relevance=20)
-                        briefmod.generate(arts, load_prices(), load_spreads())
+                if st.button("✨ Refresh brief", use_container_width=True):
+                    with st.spinner("Writing the cross-asset briefing…"):
+                        arts = db.query_articles(limit=400, min_relevance=0)
+                        briefmod.generate(arts, load_prices(), load_spreads(),
+                                          equities=load_market_movers(), eia=load_inventories())
                     st.cache_data.clear()
                     b = briefmod.load()
+                if b.get("text") and mailer.configured():
+                    if st.button("📧 Email to Neil", use_container_width=True):
+                        try:
+                            ev = events.upcoming(datetime.now(timezone.utc), limit=5)
+                            html_body = email_render.briefing_html(
+                                b["text"], b.get("edition", "Market"), load_prices(),
+                                load_spreads(), ev)
+                            subj = "Sheerstock Park — %s Briefing, %s" % (
+                                b.get("edition", "Market"),
+                                datetime.now(timezone.utc).strftime("%d %b"))
+                            sent = mailer.send_html(subj, html_body,
+                                                    email_render.briefing_text(b["text"], b.get("edition", "Market")))
+                            st.success("Emailed to %s" % ", ".join(mailer.recipients())) if sent \
+                                else st.warning("Email backend not configured.")
+                        except Exception as exc:  # noqa: BLE001
+                            st.warning("Send failed: %s" % exc)
             else:
-                st.caption("Add ANTHROPIC_API_KEY to .env to enable.")
+                st.caption("Add ANTHROPIC_API_KEY to secrets to enable.")
+            if mailer.configured():
+                if st.button("🚨 Check big changes", use_container_width=True,
+                             help="Scan the latest headlines and email any very-big ones now."):
+                    with st.spinner("Scanning for major headlines…"):
+                        r = alertsmod.run_urgent()
+                    if r.get("note") == "baselined":
+                        st.caption("Baselined — alerts start from the next big story.")
+                    elif r.get("sent"):
+                        st.success("Emailed %d urgent headline(s)." % r["sent"])
+                    else:
+                        st.caption("Nothing big enough right now.")
         with left:
             if b.get("text"):
-                st.markdown('<div class="sec">AI Morning Brief · %s · %s</div>'
-                            % (b.get("model", ""), humanize(b.get("generated_at"))),
+                st.markdown('<div class="sec">AI Market Briefing · %s · %s · %s</div>'
+                            % (b.get("edition", "Market"), b.get("model", ""),
+                               humanize(b.get("generated_at"))),
                             unsafe_allow_html=True)
             else:
-                st.markdown('<div class="sec">AI Morning Brief</div>', unsafe_allow_html=True)
+                st.markdown('<div class="sec">AI Market Briefing</div>', unsafe_allow_html=True)
         if b.get("text"):
             with st.container(border=True):
                 st.markdown(b["text"])
         else:
-            st.info("No brief yet. Click **✨ Generate** (needs an API key), or run "
-                    "`python tools/generate_brief.py`. It distills the top oil-relevant "
-                    "stories + live prices into a 30-second desk note.")
+            st.info("No briefing yet. Click **✨ Refresh brief** (needs an API key), or run "
+                    "`python tools/generate_brief.py`. It distills the day's macro, geopolitical, "
+                    "energy, reserves and market-mover stories + live prices into a 2-minute read.")
 
         st.markdown('<div class="sec" style="margin-top:18px">💬 Ask the news</div>',
                     unsafe_allow_html=True)

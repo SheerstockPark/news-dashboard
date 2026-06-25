@@ -1,0 +1,59 @@
+name: Email briefing → Neil
+
+# Generates the AI cross-asset briefing (macro / geopolitical / energy / reserves / market
+# movers) and emails it twice a day. Reads the live Turso DB, so it works even when the
+# dashboard isn't open. Times are UTC — set for British Summer Time (BST, +1) so they land
+# 06:00 and 20:00 UK. In GMT (winter) they'd arrive an hour earlier; bump each cron +1h if
+# you want them pinned to 06:00/20:00 year-round.
+on:
+  schedule:
+    - cron: "0 5 * * *"    # morning — 06:00 UK (BST)
+    - cron: "0 19 * * *"   # evening — 20:00 UK (BST)
+  workflow_dispatch:
+    inputs:
+      edition:
+        description: Edition label (manual run)
+        type: choice
+        options: [Morning, Evening]
+        default: Morning
+
+concurrency:
+  group: briefing
+  cancel-in-progress: false
+
+jobs:
+  briefing:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - name: Install dependencies (brief + email)
+        run: pip install -r requirements-brief.txt
+      - name: Pick edition (evening cron vs morning vs manual input)
+        id: ed
+        run: |
+          if [ "${{ github.event.schedule }}" = "0 19 * * *" ]; then
+            echo "edition=Evening" >> "$GITHUB_OUTPUT"
+          elif [ -n "${{ github.event.inputs.edition }}" ]; then
+            echo "edition=${{ github.event.inputs.edition }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "edition=Morning" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Generate + email the briefing
+        env:
+          TURSO_DATABASE_URL: ${{ secrets.TURSO_DATABASE_URL }}
+          TURSO_AUTH_TOKEN: ${{ secrets.TURSO_AUTH_TOKEN }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          EIA_API_KEY: ${{ secrets.EIA_API_KEY }}
+          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+          DIGEST_TO: ${{ secrets.DIGEST_TO }}
+          DIGEST_FROM: ${{ secrets.DIGEST_FROM }}
+          SMTP_HOST: ${{ secrets.SMTP_HOST }}
+          SMTP_PORT: ${{ secrets.SMTP_PORT }}
+          SMTP_USER: ${{ secrets.SMTP_USER }}
+          SMTP_PASS: ${{ secrets.SMTP_PASS }}
+        run: python tools/send_briefing.py --edition "${{ steps.ed.outputs.edition }}"

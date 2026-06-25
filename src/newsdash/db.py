@@ -37,6 +37,14 @@ _SCHEMA_STATEMENTS = [
     "CREATE INDEX IF NOT EXISTS idx_articles_published ON articles(published_at DESC)",
     "CREATE INDEX IF NOT EXISTS idx_articles_source    ON articles(source_id)",
     "CREATE INDEX IF NOT EXISTS idx_articles_relevance ON articles(relevance DESC)",
+    # Tracks which articles already triggered an alert, per scope ("urgent" etc.). Lives in
+    # the DB (not a local file) so the dedupe survives ephemeral CI runners between cron runs.
+    """CREATE TABLE IF NOT EXISTS alert_state (
+        id       TEXT NOT NULL,
+        scope    TEXT NOT NULL,
+        sent_at  TEXT NOT NULL,
+        PRIMARY KEY (id, scope)
+    )""",
 ]
 
 _INSERT_COLS = ["id", "source_id", "source_name", "category", "title", "summary", "url",
@@ -207,6 +215,31 @@ def query_articles(
         d["tags"] = json.loads(d.get("tags") or "[]")
         out.append(d)
     return out
+
+
+def alerted_ids(scope: str) -> set:
+    """Article ids that have already been alerted for this scope (e.g. 'urgent')."""
+    with _connect() as conn:
+        rows = conn.execute("SELECT id FROM alert_state WHERE scope=?", (scope,)).fetchall()
+    return {r[0] for r in rows}
+
+
+def mark_alerted(ids: Iterable[str], scope: str) -> int:
+    """Record that these articles were alerted for this scope. Idempotent. Returns # marked."""
+    from datetime import datetime, timezone
+
+    ids = [i for i in ids if i]
+    if not ids:
+        return 0
+    now = datetime.now(timezone.utc).isoformat()
+    with _connect() as conn:
+        conn.executemany(
+            "INSERT INTO alert_state (id, scope, sent_at) VALUES (?,?,?) "
+            "ON CONFLICT(id, scope) DO NOTHING",
+            [(i, scope, now) for i in ids],
+        )
+        conn.commit()
+    return len(ids)
 
 
 def stats() -> Dict[str, Any]:

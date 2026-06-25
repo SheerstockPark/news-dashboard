@@ -29,6 +29,21 @@ EQUITIES = [
     ("^VIX", "VIX", ""),
 ]
 
+# Broad market: indices + megacaps that drive risk sentiment. Feeds the briefing's
+# "Market Movers" section so a big equity/index move (e.g. a megacap selloff dragging the
+# Nasdaq) shows up alongside the oil book.
+MARKET_MOVERS = [
+    ("^GSPC", "S&P 500", ""),
+    ("^IXIC", "Nasdaq", ""),
+    ("^DJI", "Dow Jones", ""),
+    ("^VIX", "VIX", ""),
+    ("TSLA", "Tesla", ""),
+    ("NVDA", "Nvidia", ""),
+    ("AAPL", "Apple", ""),
+    ("MSFT", "Microsoft", ""),
+    ("GC=F", "Gold", "$/oz"),
+]
+
 
 def get_quotes(instruments=None) -> List[Dict]:
     """Return a list of quote dicts. Empty list if yfinance is unavailable."""
