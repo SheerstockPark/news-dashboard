@@ -111,7 +111,25 @@ def _events_block(events: List[Dict], now: datetime) -> str:
     )
 
 
-def _sources_block(articles: List[Dict]) -> str:
+def _ago(iso: str, now: datetime) -> str:
+    """Relative freshness, e.g. '12m ago' / '3h ago' / '2d ago'."""
+    try:
+        dt = datetime.fromisoformat(iso)
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=timezone.utc)
+    except (TypeError, ValueError):
+        return ""
+    s = int((now - dt).total_seconds())
+    if s < 120:
+        return "just now"
+    if s < 3600:
+        return "%dm ago" % (s // 60)
+    if s < 86400:
+        return "%dh ago" % (s // 3600)
+    return "%dd ago" % (s // 86400)
+
+
+def _sources_block(articles: List[Dict], now: datetime) -> str:
     """A deterministic, clickable list of the real top articles behind today's brief."""
     if not articles:
         return ""
@@ -122,13 +140,15 @@ def _sources_block(articles: List[Dict]) -> str:
             imp = ' &middot; <span style="color:%s;font-weight:700">▲ bullish</span>' % UP
         elif a.get("impact") == "bearish":
             imp = ' &middot; <span style="color:%s;font-weight:700">▼ bearish</span>' % DOWN
+        ago = _ago(a.get("published_at") or a.get("fetched_at"), now)
+        ago_chip = ' &middot; <span>%s</span>' % ago if ago else ""
         rows += (
             '<tr><td style="padding:9px 0;border-bottom:1px solid %s">'
             '<a href="%s" style="color:%s;text-decoration:none;font-weight:600;font-size:14px">%s</a>'
             '<div style="margin-top:3px;color:%s;font-size:12px">'
-            '<span style="color:#9fb2c4;font-weight:600">%s</span>%s</div></td></tr>'
+            '<span style="color:#9fb2c4;font-weight:600">%s</span>%s%s</div></td></tr>'
             % (BORDER, html.escape(a.get("url", "")), TEXT, html.escape(a["title"]),
-               MUTED, html.escape(a.get("source_name", "")), imp)
+               MUTED, html.escape(a.get("source_name", "")), ago_chip, imp)
         )
     return (
         '<div style="margin-top:20px;padding-top:14px;border-top:1px solid %s">'
@@ -162,7 +182,7 @@ def briefing_html(brief_text: str, edition: str, quotes: List[Dict], spreads: Li
 </div></body></html>""".format(
         bg=BG, text=TEXT, accent=ACCENT, muted=MUTED, border=BORDER, edition=html.escape(edition),
         date=date_str, tape=_tape(quotes, spreads), body=md_to_html(brief_text),
-        sources=_sources_block(articles or []), events=_events_block(events or [], now),
+        sources=_sources_block(articles or [], now), events=_events_block(events or [], now),
     )
 
 

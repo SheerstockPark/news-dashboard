@@ -17,7 +17,7 @@ from typing import Dict, List
 
 import requests
 
-from . import DATA_DIR, db, mailer
+from . import DATA_DIR, db, email_render, mailer
 
 STATE_PATH = DATA_DIR / "alerts_state.json"  # Telegram-feed dedupe (run_once); urgent path uses the DB
 
@@ -172,14 +172,16 @@ def _urgent_email_html(items: List[Dict], now: datetime) -> str:
             badge = '<span style="background:#16c784;color:#04130d;border-radius:4px;padding:1px 7px;font-size:11px;font-weight:800">BULLISH</span>'
         elif imp == "bearish":
             badge = '<span style="background:#ea3943;color:#fff;border-radius:4px;padding:1px 7px;font-size:11px;font-weight:800">BEARISH</span>'
+        ago = email_render._ago(a.get("published_at") or a.get("fetched_at"), now)
+        ago_chip = (" &middot; " + ago) if ago else ""
         rows += (
             '<tr><td style="padding:12px 0;border-bottom:1px solid #1e2733">'
             '<a href="%s" style="color:#e6edf3;text-decoration:none;font-weight:700;font-size:16px">%s</a>'
             '<div style="margin-top:5px;color:#7d8b9a;font-size:12px">'
-            '<span style="color:#9fb2c4;font-weight:600">%s</span> &middot; '
+            '<span style="color:#9fb2c4;font-weight:600">%s</span>%s &middot; '
             '<span style="color:#ffa45c">relevance %d</span>%s</div></td></tr>'
             % (html.escape(a.get("url", "")), html.escape(a["title"]),
-               html.escape(a["source_name"]), a.get("relevance", 0),
+               html.escape(a["source_name"]), ago_chip, a.get("relevance", 0),
                (" &middot; " + badge) if badge else "")
         )
     return """\
