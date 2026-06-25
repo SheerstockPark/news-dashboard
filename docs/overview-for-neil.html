@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sheerstock Park — Oil Desk News Terminal & Briefings</title>
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+         color: #1a2230; background: #f4f6f9; line-height: 1.5; }
+  .page { max-width: 860px; margin: 0 auto; background: #fff; padding: 40px 48px;
+          box-shadow: 0 2px 18px rgba(0,0,0,.06); }
+  .hdr { border-bottom: 3px solid #ff7a18; padding-bottom: 14px; margin-bottom: 22px; }
+  .brand { font-size: 26px; font-weight: 800; letter-spacing: .5px; color: #0b1422; }
+  .brand span { color: #ff7a18; }
+  .sub { color: #5b6b7a; font-size: 14px; margin-top: 3px; }
+  h2 { font-size: 16px; text-transform: uppercase; letter-spacing: .8px; color: #ff7a18;
+       margin: 26px 0 8px; border-bottom: 1px solid #e7ebf0; padding-bottom: 5px; }
+  h3 { font-size: 14.5px; margin: 14px 0 3px; color: #0b1422; }
+  p, li { font-size: 14px; color: #283443; }
+  .lead { font-size: 15px; color: #34414f; }
+  ul { margin: 6px 0 6px; padding-left: 20px; }
+  li { margin: 3px 0; }
+  .pill { display:inline-block; background:#fff3e9; color:#c85f00; border:1px solid #ffd9bd;
+          border-radius: 20px; padding: 1px 10px; font-size: 12px; font-weight: 700; }
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 26px; }
+  .url { background:#0b1422; color:#fff; border-radius:8px; padding:10px 14px; font-size:14px;
+         display:inline-block; text-decoration:none; font-weight:600; margin-top:4px; }
+  .note { background:#f7f9fb; border-left:3px solid #ff7a18; padding:10px 14px; font-size:13px;
+          color:#3a4756; border-radius:0 8px 8px 0; margin:8px 0; }
+  .ftr { margin-top: 30px; padding-top: 14px; border-top: 1px solid #e7ebf0; color:#7a8696;
+         font-size: 12px; }
+  b.k { color:#0b1422; }
+  .pagebreak { page-break-before: always; }
+  table.cost { width:100%; border-collapse:collapse; margin:8px 0; font-size:13.5px; }
+  table.cost td { padding:6px 4px; border-bottom:1px solid #eef1f5; color:#283443; }
+  table.cost td.r { text-align:right; color:#1a7f4b; font-weight:700; white-space:nowrap; }
+  table.cost tr:last-child td { border-bottom:none; border-top:2px solid #e7ebf0; padding-top:8px; }
+  .srcgrid p { margin:5px 0; font-size:13px; }
+  .sample { background:#0b1422; color:#dbe5ef; border-radius:10px; padding:15px 18px; font-size:13px;
+            line-height:1.5; }
+  .sample .sh { color:#ff9a4d; font-weight:800; font-size:11.5px; text-transform:uppercase;
+                letter-spacing:.5px; margin-top:11px; }
+  .sample .sh:first-child { margin-top:0; }
+  .sample b { color:#fff; }
+  .cap { font-size:12.5px; color:#5b6b7a; margin-top:6px; }
+  @media print { body { background:#fff; } .page { box-shadow:none; padding: 24px 0; } }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <div class="hdr">
+    <div class="brand">SHEERSTOCK&nbsp;PARK <span>·</span> Oil Desk News Terminal</div>
+    <div class="sub">A live, AI-powered news &amp; market-intelligence platform for the oil desk — dashboard + automated email briefings.</div>
+  </div>
+
+  <p class="lead">It watches 50+ news sources around the clock, scores every headline for oil-relevance
+  and market impact with AI, and surfaces what actually matters — on a live dashboard and in
+  twice-daily email briefings, with instant alerts when something big breaks.</p>
+
+  <h2>1 · The Dashboard</h2>
+  <p>A live website you can open any time — it updates itself continuously, even when no one's watching.</p>
+  <a class="url" href="https://news-dashboard-sheerstockpark.streamlit.app">news-dashboard-sheerstockpark.streamlit.app</a>
+  <div class="note">Access is private — you log in once with the account we set up. It works on desktop and phone.</div>
+
+  <h3>What's on it</h3>
+  <div class="grid">
+    <div>
+      <p><b class="k">🏠 Overview</b> — the landing page: the biggest issues across <i>all</i> areas,
+      a live AI "desk read" of the day, plus a click-to-browse view by area (Macro, Oil, Fuel,
+      Geopolitics, Equities, Shipping).</p>
+      <p><b class="k">📋 Brief</b> — generate the AI market briefing on demand, and ask plain-English
+      questions about the news ("what's the latest on Hormuz?").</p>
+      <p><b class="k">📰 Feed</b> — the full searchable archive of every story, filterable by source,
+      topic and relevance.</p>
+      <p><b class="k">📊 Pulse</b> — trends and sentiment analytics across the coverage.</p>
+    </div>
+    <div>
+      <p><b class="k">🗣️ Voices</b> — what key figures (Trump, OPEC, officials) are saying.</p>
+      <p><b class="k">🛢️ Markets</b> — live price tape (Brent, WTI, products, FX), key spreads,
+      price history with news overlaid, and EIA inventory data.</p>
+      <p><b class="k">🌍 Flows &amp; Reserves</b> — US strategic &amp; commercial oil reserves, US
+      production/imports/exports, and global crude production by country.</p>
+      <p><b class="k">⚑ Always on top</b> — key upcoming market events (EIA, OPEC, CPI, Fed, jobs)
+      and live Gulf/tropical-storm risk to oil production.</p>
+    </div>
+  </div>
+
+  <h2>2 · The Email Briefings</h2>
+  <h3>Daily briefings — <span class="pill">06:00 &amp; 20:00 UK</span></h3>
+  <p>A sharp, trader-voice market note written fresh by AI from that moment's news. Leads with the
+  biggest headlines, then breaks down Energy &amp; Fuel, Geopolitics, Macro &amp; Rates, Market Movers,
+  Reserves, and what to watch next — with the live price tape, clickable links to the source articles,
+  and the upcoming market events.</p>
+
+  <h3>Urgent alerts — <span class="pill">only when it matters</span></h3>
+  <p>Intraday emails reserved for genuinely big breaks — a tanker strike in Hormuz, a surprise OPEC move,
+  an SPR release, a Gulf hurricane, a rate shock. The subject line is the headline itself, so you know at
+  a glance. Quiet days send nothing; it's a watchdog, not a newsletter.</p>
+
+  <h2>3 · What runs automatically</h2>
+  <ul>
+    <li>Pulls fresh headlines into the cloud 24/7 — the dashboard is never stale.</li>
+    <li>AI re-scores market sentiment every hour.</li>
+    <li>Sends the morning &amp; evening briefings on schedule.</li>
+    <li>Watches continuously for urgent, market-moving news.</li>
+  </ul>
+
+  <h2>4 · Good to know</h2>
+  <ul>
+    <li><b class="k">Data:</b> 50+ news sources; live prices (≈15-min delayed free feed, clearly labelled);
+    official US energy data (EIA); weather (NOAA); economic calendar (US gov data).</li>
+    <li><b class="k">Honest by design:</b> AI impact reads are decision-support, not investment advice —
+    and everything is labelled with how fresh it is.</li>
+    <li><b class="k">Optional future add-ons:</b> genuinely real-time prices (paid feed, ~$15–30/mo) and a
+    live tanker-tracking map (~$20–100/mo) — nice-to-haves, not needed for the core.</li>
+  </ul>
+
+  <h2>5 · Under the hood — how it works</h2>
+  <p>The whole system runs itself in the cloud — nothing to install, no servers to manage.</p>
+  <ul>
+    <li><b class="k">Collects</b> — pulls headlines from 50+ sources into a cloud database around the
+    clock, every few minutes.</li>
+    <li><b class="k">Scores</b> — AI (Claude) reads each story and rates it for oil-relevance and
+    market impact, refreshed hourly.</li>
+    <li><b class="k">Shows</b> — the dashboard reads that live database, so it's always current — even
+    at 3am with no one watching.</li>
+    <li><b class="k">Sends</b> — automated emails: scheduled briefings at 06:00 &amp; 20:00, plus urgent
+    alerts the moment something big breaks.</li>
+  </ul>
+
+  <h2>6 · The sources <span style="font-size:12px;color:#7a8696;text-transform:none;letter-spacing:0;font-weight:500">(53 live feeds)</span></h2>
+  <div class="srcgrid">
+    <p><b class="k">Wires &amp; world:</b> BBC, Al Jazeera, Guardian, New York Times, France 24,
+    Deutsche Welle, Times of Israel, Jerusalem Post, Arab News, Middle East Eye, TASS, Moscow Times.</p>
+    <p><b class="k">Energy &amp; commodities:</b> OilPrice.com, Rigzone, World Oil, Energy Voice, Natural
+    Gas Intelligence, EIA (Today in Energy &amp; Press), CNBC Energy, Investing.com Commodities, Mining.com.</p>
+    <p><b class="k">Markets &amp; macro:</b> MarketWatch, CNBC (Markets / Finance / Economy), Yahoo
+    Finance, Seeking Alpha, FXStreet, ZeroHedge, Investing.com, BBC &amp; Guardian Business, Sky News.</p>
+    <p><b class="k">Shipping:</b> Maritime Executive, gCaptain, Splash247, Hellenic Shipping News.</p>
+    <p><b class="k">Voices &amp; official data:</b> Trump (Truth Social), Google News aggregations, EIA
+    energy data, NOAA hurricane centre, US economic calendar.</p>
+  </div>
+
+  <div class="ftr">Sheerstock Park News Terminal &nbsp;·&nbsp; Created by Saavan Sumray-Roots</div>
+</div>
+</body>
+</html>

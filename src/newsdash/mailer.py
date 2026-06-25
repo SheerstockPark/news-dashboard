@@ -78,7 +78,10 @@ def _send_smtp(subject: str, html: str, text: Optional[str], to: List[str]) -> b
     if text:
         msg.attach(MIMEText(text, "plain"))
     msg.attach(MIMEText(html, "html"))
-    host, port = _env("SMTP_HOST", "smtp.gmail.com"), int(_env("SMTP_PORT", "587"))
+    # Use `or` (not the get-default) so empty secrets — e.g. SMTP_PORT passed as "" by the
+    # GitHub workflow when the secret isn't set — fall back to the Gmail defaults.
+    host = _env("SMTP_HOST") or "smtp.gmail.com"
+    port = int(_env("SMTP_PORT") or "587")
     with smtplib.SMTP(host, port, timeout=30) as s:
         s.starttls()
         s.login(_env("SMTP_USER"), _env("SMTP_PASS"))
