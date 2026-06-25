@@ -1291,8 +1291,7 @@ def terminal():
     with tab_flows:
         if not eia.available():
             st.info("💡 Add a free **EIA_API_KEY** (instant at eia.gov/opendata) to the app "
-                    "secrets to show strategic reserves, US oil flows and global production. "
-                    "Live tanker-level cargo tracking needs a paid feed (Kpler/Vortexa).")
+                    "secrets to show strategic reserves, US oil flows and global production.")
         else:
             reserves = load_reserves()
             flows = load_us_flows()
@@ -1335,8 +1334,8 @@ def terminal():
                              '<i style="display:block;height:100%%;width:%.0f%%;background:%s"></i></div></div>') % (
                         html.escape(str(g["country"])), "{:,.0f}".format(g["value"]), pct, ACCENT)
                 st.markdown(bars, unsafe_allow_html=True)
-                st.caption("Source: EIA International (latest available month). Monthly cadence, "
-                           "1–2 month lag. Live cargo tracking needs a paid feed.")
+                st.caption("Source: EIA International — latest available month (monthly cadence, "
+                           "~1–2 month lag). A live tanker-tracking map is an optional future add-on.")
             else:
                 st.caption("Global production data unavailable (EIA International). The US reserves "
                            "and flows above are the reliable core.")
