@@ -66,7 +66,12 @@ def main() -> int:
     print("%s briefing generated (%s)." % (payload["edition"], payload["model"]))
 
     upcoming = events.upcoming(now, limit=5)
-    html_body = email_render.briefing_html(payload["text"], args.edition, quotes, spreads, upcoming, now)
+    # Deterministic, clickable source links: the real top articles behind the brief.
+    top_links = sorted(articles, key=lambda a: (a.get("relevance", 0),
+                                                a.get("published_at") or a.get("fetched_at") or ""),
+                       reverse=True)[:10]
+    html_body = email_render.briefing_html(payload["text"], args.edition, quotes, spreads,
+                                           upcoming, top_links, now)
     text_body = email_render.briefing_text(payload["text"], args.edition)
 
     # Save a copy to reports/ for the record (and easy local preview).
@@ -79,7 +84,7 @@ def main() -> int:
     if args.no_send:
         return 0
 
-    subject = "Sheerstock Park — %s Briefing, %s" % (args.edition, now.strftime("%d %b"))
+    subject = "Sheerstock Park — %s Briefing · %s" % (args.edition, now.strftime("%a %d %b %Y"))
     try:
         sent = mailer.send_html(subject, html_body, text_body)
     except Exception as exc:  # noqa: BLE001 — fail-soft so the cron stays green

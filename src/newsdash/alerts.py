@@ -134,7 +134,8 @@ def run_once(min_relevance=70, min_impact=60, keywords=None, limit=200, log=None
     for a in fresh:
         text = _format(a)
         try:
-            ok = _send_telegram(text) if ch == "telegram" else _send_email("Oil alert: " + a["title"][:80], text)
+            ok = _send_telegram(text) if ch == "telegram" \
+                else _send_email("Sheerstock Park · Oil alert — " + a["title"][:80], text)
         except Exception as exc:  # noqa: BLE001
             log("  [FAIL] %s" % exc)
             ok = False
@@ -187,7 +188,7 @@ def _urgent_email_html(items: List[Dict], now: datetime) -> str:
   <div style="font-size:13px;font-weight:800;color:#ea3943;text-transform:uppercase;letter-spacing:.5px">&#128680; Urgent market headline%s</div>
   <div style="font-size:18px;font-weight:800;margin:2px 0 14px">SHEERSTOCK&nbsp;PARK</div>
   <table width="100%%" cellspacing="0">%s</table>
-  <div style="color:#5b6b7a;font-size:11px;margin-top:18px">Sent because these crossed the urgent threshold &middot; %s</div>
+  <div style="color:#5b6b7a;font-size:11px;margin-top:18px">Sent because these crossed the urgent threshold &middot; %s<br>Created by Saavan Sumray-Roots.</div>
 </div></body></html>""" % ("s" if len(items) > 1 else "", rows, now.strftime("%H:%M UTC, %d %b %Y"))
 
 
@@ -218,7 +219,12 @@ def run_urgent(min_relevance: int = 78, min_impact: int = 72, keywords: List[str
         return {"sent": 0, "channel": "email", "candidates": 0}
 
     now = datetime.now(timezone.utc)
-    subject = "🚨 Sheerstock Park — %d urgent headline%s" % (len(fresh), "s" if len(fresh) > 1 else "")
+    # Subject leads with the actual top headline so the inbox tells the story at a glance.
+    lead = max(fresh, key=lambda a: (a.get("relevance", 0), abs(a.get("impact_score", 0))))
+    lt = lead["title"]
+    lt = (lt[:78] + "…") if len(lt) > 79 else lt
+    subject = ("🚨 URGENT · %s" % lt) if len(fresh) == 1 \
+        else ("🚨 URGENT · %s  (+%d more)" % (lt, len(fresh) - 1))
     try:
         ok = mailer.send_html(subject, _urgent_email_html(fresh, now))
     except Exception as exc:  # noqa: BLE001 — keep the cron green

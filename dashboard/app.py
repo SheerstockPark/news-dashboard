@@ -38,7 +38,7 @@ except Exception:
 from newsdash import config as cfg  # noqa: E402
 from newsdash import ask as askmod  # noqa: E402
 from newsdash import brief as briefmod  # noqa: E402
-from newsdash import db, eia, email_render, events, ingest, mailer, prices  # noqa: E402
+from newsdash import db, eia, email_render, events, ingest, mailer, prices, weather  # noqa: E402
 from newsdash import alerts as alertsmod  # noqa: E402
 
 st.set_page_config(page_title="Sheerstock Park — Oil Desk Terminal", page_icon="🛢️", layout="wide")
@@ -177,6 +177,62 @@ html, body, [class*="css"], .stApp, .stMarkdown { font-family:'Inter',-apple-sys
 .ts a { color:#f0d7bd; text-decoration:none; font-weight:600; } .ts a:hover { color:var(--accent); }
 .ts .t { color:#9a7b5c; font-size:.68rem; }
 hr { border-color: var(--line); margin:.6rem 0 1rem; }
+
+/* overview: events flag bar + category panels */
+.flagbar { display:flex; gap:8px; flex-wrap:wrap; margin:2px 0 16px; }
+.flag { display:flex; align-items:center; gap:7px; background:var(--panel); border:1px solid var(--line);
+        border-radius:10px; padding:7px 11px; font-size:.78rem; }
+.flag .em { font-size:.95rem; } .flag .nm { color:#d7e1ec; font-weight:650; }
+.flag .cd { color:var(--mut); font-weight:700; }
+.flag.soon { border-color:rgba(255,122,24,.5); background:rgba(255,122,24,.08); }
+.flag.soon .cd { color:#ffa45c; }
+.flag.today { border-color:rgba(255,59,48,.55); background:rgba(255,59,48,.1); }
+.flag.today .cd { color:#ff6b62; }
+.panel { background:var(--panel); border:1px solid var(--line); border-radius:14px; padding:12px 15px;
+         margin-bottom:14px; height:100%; }
+.panel-h { font-size:.95rem; font-weight:800; margin-bottom:6px; display:flex; align-items:center;
+           justify-content:space-between; }
+.panel-h .cnt { color:var(--mut); font-weight:600; font-size:.72rem; }
+.pi { display:block; text-decoration:none; padding:9px 0; border-top:1px solid var(--line); }
+.pi.first { border-top:none; }
+.pi .t { color:#dbe5ef; font-weight:600; font-size:.9rem; line-height:1.32; display:block; }
+.pi:hover .t { color:var(--accent); }
+.pi .m { color:var(--mut); font-size:.72rem; margin-top:4px; display:flex; gap:8px; align-items:center; }
+.pi .b { color:var(--bull); font-weight:700; } .pi .r { color:var(--bear); font-weight:700; }
+.panel .empty { color:var(--mut); font-size:.82rem; padding:10px 0; }
+.fresh { color:var(--mut); font-size:.70rem; margin:2px 0 6px; }
+
+/* overview: enlarged 'biggest issues' block + AI desk-read side panel */
+.bigtop .hero { padding:20px 22px; }
+.bigtop .hero a { font-size:1.7rem; line-height:1.18; }
+.bigtop .hero .tagline { font-size:.74rem; }
+.bighead { background:var(--panel); border:1px solid var(--line); border-left:4px solid var(--line);
+           border-radius:12px; padding:13px 16px; margin-bottom:10px; transition:.14s; }
+.bighead:hover { border-color:#33414f; transform:translateY(-1px); }
+.bighead.hot { border-left-color: var(--hot); } .bighead.warm { border-left-color: var(--accent); }
+.bighead a { color:var(--txt); text-decoration:none; font-weight:700; font-size:1.16rem; line-height:1.28; }
+.bighead a:hover { color:var(--accent); }
+.aibox { background:linear-gradient(160deg,#16222e 0%, var(--panel) 75%); border:1px solid #25323f;
+         border-radius:14px; padding:16px 18px; height:100%; }
+.aibox .h { font-size:.74rem; text-transform:uppercase; letter-spacing:1.2px; color:var(--accent);
+            font-weight:800; margin-bottom:10px; display:flex; align-items:center; gap:8px; }
+.aibox .body { color:#cdd8e3; font-size:.92rem; line-height:1.55; }
+.aibox .muted { color:var(--mut); font-size:.85rem; line-height:1.5; }
+.aibox .stat { display:flex; gap:14px; margin-top:12px; }
+.aibox .stat .v { font-size:1.3rem; font-weight:800; } .aibox .stat .l { color:var(--mut); font-size:.66rem; text-transform:uppercase; letter-spacing:.6px; }
+.pulse { width:9px; height:9px; border-radius:50%; background:var(--bull); display:inline-block;
+         animation:pulsing 1.8s infinite; }
+@keyframes pulsing { 0%{box-shadow:0 0 0 0 rgba(22,199,132,.55)} 70%{box-shadow:0 0 0 8px rgba(22,199,132,0)} 100%{box-shadow:0 0 0 0 rgba(22,199,132,0)} }
+
+/* tropical / Gulf weather risk strip */
+.wx { display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin:2px 0 14px; }
+.wx .clear { color:var(--mut); font-size:.82rem; }
+.wx .storm { display:flex; align-items:center; gap:7px; background:var(--panel); border:1px solid var(--line);
+             border-radius:10px; padding:7px 11px; font-size:.78rem; }
+.wx .storm.gulf { border-color:rgba(255,59,48,.55); background:rgba(255,59,48,.1); }
+.wx .storm .nm { color:#d7e1ec; font-weight:700; } .wx .storm .ct { color:var(--mut); }
+.wx .gulfflag { background:rgba(255,59,48,.16); color:#ff6b62; font-weight:800; border-radius:6px;
+                padding:2px 9px; font-size:.72rem; }
 </style>
 """
 st.markdown(CSS, unsafe_allow_html=True)
@@ -188,7 +244,7 @@ def auto_ingest(_bucket):
     return ingest.run_once()
 
 
-@st.cache_data(ttl=60, show_spinner=False)
+@st.cache_data(ttl=30, show_spinner=False)
 def load_prices():
     return prices.get_quotes()
 
@@ -211,6 +267,33 @@ def load_market_movers():
 @st.cache_data(ttl=1800, show_spinner=False)
 def load_inventories():
     return eia.get_inventories()
+
+
+@st.cache_data(ttl=1800, show_spinner=False)
+def load_weather(_bucket):
+    return weather.get_storms()
+
+
+@st.cache_data(ttl=3600, show_spinner=False)
+def load_reserves():
+    return eia.get_reserves()
+
+
+@st.cache_data(ttl=3600, show_spinner=False)
+def load_us_flows():
+    return eia.get_us_flows()
+
+
+@st.cache_data(ttl=21600, show_spinner=False)
+def load_global_production():
+    return eia.get_global_production()
+
+
+@st.cache_data(ttl=900, show_spinner=False)
+def load_quick_take(_ids_key, payload, quotes):
+    # _ids_key (top headline ids) drives cache invalidation: regenerates only when the top
+    # stories change, or every 15 min — so the 30s auto-refresh never re-hits the API.
+    return briefmod.quick_take(payload, quotes)
 
 
 @st.cache_data(ttl=120, show_spinner=False)
@@ -400,6 +483,94 @@ def article_card(a, also_in=None):
     )
 
 
+def panel_item(a, first=False):
+    """Compact one-line headline for the Overview category panels."""
+    imp = ""
+    if a.get("impact") == "bullish":
+        imp = '<span class="b">▲ %+d</span>' % a.get("impact_score", 0)
+    elif a.get("impact") == "bearish":
+        imp = '<span class="r">▼ %d</span>' % a.get("impact_score", 0)
+    return ('<a class="pi%s" href="%s" target="_blank"><span class="t">%s</span>'
+            '<span class="m"><span class="src">%s</span><span>%s</span>%s</span></a>') % (
+        " first" if first else "", html.escape(a.get("url", "")), html.escape(a["title"]),
+        html.escape(a["source_name"]), humanize(a.get("published_at") or a.get("fetched_at")), imp)
+
+
+def bighead_card(a, also_in=None):
+    """A larger headline card for the 'biggest issues' row (between hero and panel items)."""
+    cls = score_class(a["relevance"])
+    imp = ""
+    if a.get("impact") == "bullish":
+        imp = '<span class="imp imp-bull">▲ BULLISH %+d</span>' % a.get("impact_score", 0)
+    elif a.get("impact") == "bearish":
+        imp = '<span class="imp imp-bear">▼ BEARISH %d</span>' % a.get("impact_score", 0)
+    dupe = ""
+    if also_in:
+        uniq = list(dict.fromkeys(s for s in also_in if s != a["source_name"]))
+        if uniq:
+            dupe = '<span class="chip dupe" title="%s">＋%d more</span>' % (
+                html.escape(", ".join(uniq[:8])), len(uniq))
+    summary = ('<div class="summary">%s</div>' % html.escape(a["summary"])) if a.get("summary") else ""
+    return ('<div class="bighead %s"><a href="%s" target="_blank">%s</a>%s'
+            '<div class="meta"><span class="src">%s</span>%s<span class="chip">%s</span>'
+            '<span>%s</span>%s</div></div>') % (
+        cls, html.escape(a.get("url", "")), html.escape(a["title"]), summary,
+        html.escape(a["source_name"]), dupe, html.escape(a["category"]),
+        humanize(a.get("published_at") or a.get("fetched_at")), imp)
+
+
+def _flow_card(m, sentiment=False):
+    """KPI-style card for an EIA reserve/flow metric: level, w/w change, trend sparkline."""
+    if sentiment:  # reserves: a draw (down) is bullish for crude
+        col = BULL if m.get("bias") == "bullish" else BEAR if m.get("bias") == "bearish" else MUT
+        tag = ("▼ draw" if m.get("bias") == "bullish"
+               else "▲ build" if m.get("bias") == "bearish" else "flat")
+    else:          # flows: directional only, no price sentiment claim
+        d = m.get("dir")
+        col = BULL if d == "up" else BEAR if d == "down" else MUT
+        tag = "▲" if d == "up" else "▼" if d == "down" else "■"
+    trend = m.get("trend") or []
+    spark = sparkline(trend, col) if len(trend) >= 2 else ""
+    return ('<div class="kpi" style="border-left:4px solid %s">'
+            '<div class="l">%s</div>'
+            '<div class="v num" style="font-size:1.2rem">%s <span style="font-size:.58rem;color:%s">%s</span></div>'
+            '<div style="color:%s;font-size:.72rem;font-weight:700">%s · %+.0f w/w</div>%s</div>') % (
+        col, html.escape(m["label"]), "{:,.0f}".format(m["value"]), MUT, html.escape(m["unit"]),
+        col, tag, m["change"], spark)
+
+
+def _has_kw(a, words):
+    hay = (a["title"] + " " + (a.get("summary") or "")).lower()
+    return any(w in hay for w in words)
+
+
+_OIL_KW = ["crude", "brent", "wti", "opec", "barrel", "shale", "oilfield", "oil price",
+           "oil output", "oil prices", "petroleum", "oil demand", "oil supply"]
+_FUEL_KW = ["diesel", "gasoline", "petrol", "jet fuel", "gasoil", "heating oil", "distillate",
+            "refinery", "refining", "crack", "pump price", "fuel oil", "fuel prices"]
+
+# Category panels for the Overview — (emoji, label, predicate). Order = display order.
+PANELS = [
+    ("📰", "Macro & Rates", lambda a: a["category"] == "macro"),
+    ("🛢️", "Oil & Crude", lambda a: a["category"] in ("energy", "commodities") and _has_kw(a, _OIL_KW)),
+    ("⛽", "Fuel & Products", lambda a: a["category"] == "energy" and _has_kw(a, _FUEL_KW)),
+    ("🌍", "Geopolitics", lambda a: a["category"] == "geopolitics"),
+    ("📈", "Equities & Shares", lambda a: a["category"] == "markets"),
+    ("🚢", "Shipping & Trade", lambda a: a["category"] == "shipping"),
+]
+
+
+def area_selector(labels):
+    """Single-select 'area' chips for the Overview, with graceful fallback across versions."""
+    if hasattr(st, "segmented_control"):
+        return st.segmented_control("Area", labels, default=labels[0], key="ov_area",
+                                    label_visibility="collapsed")
+    if hasattr(st, "pills"):
+        return st.pills("Area", labels, default=labels[0], key="ov_area",
+                        label_visibility="collapsed")
+    return st.radio("Area", labels, horizontal=True, key="ov_area", label_visibility="collapsed")
+
+
 def hero_card(a, also_in=None):
     fav = favicon(a.get("url", ""))
     favimg = ('<img class="fav" src="%s" loading="lazy" onerror="this.style.display=\'none\'">' % fav) if fav else ""
@@ -540,6 +711,9 @@ def terminal():
                    q["last"], unit, spark, q["dir"], q["change"])
             )
         st.markdown('<div class="tape">%s</div>' % ticks, unsafe_allow_html=True)
+        st.markdown('<div class="fresh">Prices ~15-min delayed (Yahoo Finance) · '
+                    'refreshed %s UTC</div>' % datetime.now(timezone.utc).strftime("%H:%M"),
+                    unsafe_allow_html=True)
 
     # market-tone bar (crude sentiment balance over the last 24h)
     if not corpus.empty:
@@ -560,9 +734,116 @@ def terminal():
             )
 
     # ---------------------------------------------------------------- tabs
-    tab_brief, tab_feed, tab_pulse, tab_voices, tab_markets = st.tabs(
-        ["📋  Brief", "📰  Feed", "📊  Pulse", "🗣️  Voices", "🛢️  Markets"]
+    tab_overview, tab_brief, tab_feed, tab_pulse, tab_voices, tab_markets, tab_flows = st.tabs(
+        ["🏠  Overview", "📋  Brief", "📰  Feed", "📊  Pulse", "🗣️  Voices",
+         "🛢️  Markets", "🌍  Flows & Reserves"]
     )
+
+    # ============================================================ OVERVIEW
+    with tab_overview:
+        _now = datetime.now(timezone.utc)
+        ov_pool = [resolve_sentiment(a, use_llm)
+                   for a in db.query_articles(limit=700, min_relevance=0)]
+        ov_pool.sort(key=lambda a: rank_score(a, _now), reverse=True)
+        ov_clusters = cluster_articles(ov_pool)
+        ranked = [c[0] for c in ov_clusters]
+
+        # --- key events flag bar (next catalysts, soonest first) ---
+        flags = ""
+        for e in events.upcoming(_now, limit=6):
+            secs = (e["when"] - _now).total_seconds()
+            cls = "today" if secs < 86400 else "soon" if secs < 3 * 86400 else ""
+            em = "🚩" if secs < 86400 else "📅"
+            flags += ('<div class="flag %s"><span class="em">%s</span>'
+                      '<span class="nm">%s</span><span class="cd">%s</span></div>') % (
+                cls, em, html.escape(e["name"]), events.countdown(e["when"], _now))
+        if flags:
+            st.markdown('<div class="sec">⚑ Key events on the radar</div>', unsafe_allow_html=True)
+            st.markdown('<div class="flagbar">%s</div>' % flags, unsafe_allow_html=True)
+
+        # --- tropical / Gulf weather risk (NOAA) ---
+        wx = load_weather(int(__import__("time").time()) // 1800)
+        st.markdown('<div class="sec">🌀 Tropical &amp; Gulf weather risk</div>', unsafe_allow_html=True)
+        if not wx.get("ok"):
+            st.markdown('<div class="wx"><span class="clear">Weather feed unavailable right now.</span></div>',
+                        unsafe_allow_html=True)
+        elif not wx["storms"]:
+            st.markdown('<div class="wx"><span class="clear">🟢 No active Atlantic tropical systems — '
+                        'Gulf production &amp; refining clear.</span></div>', unsafe_allow_html=True)
+        else:
+            chips = ""
+            if wx["gulf_risk"]:
+                chips += '<span class="gulfflag">🚩 GULF PRODUCTION AT RISK</span>'
+            for s in wx["storms"][:6]:
+                mph = (" · %s mph" % s["intensity_mph"]) if s["intensity_mph"] else ""
+                chips += ('<div class="storm%s"><span class="nm">%s</span>'
+                          '<span class="ct">%s%s · %s</span></div>') % (
+                    " gulf" if s["gulf"] else "", html.escape(str(s["name"])),
+                    html.escape(s["class"]), mph, html.escape(s["basin"] or "?"))
+            st.markdown('<div class="wx">%s</div>' % chips, unsafe_allow_html=True)
+
+        # --- MAJOR headlines across ALL areas (enlarged) + live AI desk-read on the side ---
+        st.markdown('<div class="sec"><span class="pulse"></span>&nbsp; 🔥 Biggest issues · all areas'
+                    '</div>', unsafe_allow_html=True)
+        if ranked:
+            top = ov_clusters[:6]
+            big, side = st.columns([2, 1])
+            with big:
+                html_top = '<div class="bigtop">' + hero_card(*top[0])
+                html_top += "".join(bighead_card(*c) for c in top[1:3])  # 2 more big ones
+                html_top += "".join(panel_item(c[0], first=(i == 0))
+                                    for i, c in enumerate(top[3:6]))      # then a compact tail
+                html_top += "</div>"
+                st.markdown(html_top, unsafe_allow_html=True)
+            with side:
+                payload = [{"title": c[0]["title"], "source_name": c[0]["source_name"],
+                            "impact": c[0].get("impact", "neutral")} for c in top]
+                take = ""
+                if briefmod.available():
+                    take = load_quick_take(tuple(c[0]["id"] for c in top), payload, quotes)
+                if take:
+                    st.markdown('<div class="aibox"><div class="h">🤖 AI desk read · live</div>'
+                                '<div class="body">%s</div></div>'
+                                % html.escape(take).replace("\n", "<br>"), unsafe_allow_html=True)
+                else:
+                    # fallback (e.g. no API key locally): a live market-pulse snapshot
+                    nb = sum(1 for a in ranked[:40] if a.get("impact") == "bullish")
+                    ng = sum(1 for a in ranked[:40] if a.get("impact") == "bearish")
+                    st.markdown(
+                        '<div class="aibox"><div class="h">🤖 AI desk read</div>'
+                        '<div class="muted">Connect the API key to get a live trader read of the '
+                        'top stories here. Meanwhile, the current tape:</div>'
+                        '<div class="stat"><div><div class="v" style="color:%s">%d</div>'
+                        '<div class="l">Bullish</div></div><div><div class="v" style="color:%s">%d</div>'
+                        '<div class="l">Bearish</div></div></div></div>'
+                        % (BULL, nb, BEAR, ng), unsafe_allow_html=True)
+        else:
+            st.info("No headlines yet — the ingest cron will fill this shortly.")
+
+        # --- click an area -> that area's headline row (Feed tab is the full master data) ---
+        st.markdown('<div class="sec" style="margin-top:20px">🗂️ Browse by area</div>',
+                    unsafe_allow_html=True)
+        area_labels = ["%s %s" % (e, l) for (e, l, _) in PANELS]
+        sel = area_selector(area_labels)
+        idx = area_labels.index(sel) if sel in area_labels else 0
+        emoji, label, pred = PANELS[idx]
+        picks = [a for a in ranked if pred(a)][:10]
+        st.markdown('<div class="panel-h" style="margin-top:6px"><span>%s %s</span>'
+                    '<span class="cnt">%d in feed · open <b>Feed</b> for all</span></div>'
+                    % (emoji, label, sum(1 for a in ranked if pred(a))),
+                    unsafe_allow_html=True)
+        if picks:
+            half = (len(picks) + 1) // 2
+            c1, c2 = st.columns(2)
+            c1.markdown('<div class="panel">%s</div>' % "".join(
+                panel_item(a, first=(j == 0)) for j, a in enumerate(picks[:half])),
+                unsafe_allow_html=True)
+            c2.markdown('<div class="panel">%s</div>' % ("".join(
+                panel_item(a, first=(j == 0)) for j, a in enumerate(picks[half:]))
+                or '<div class="empty">—</div>'), unsafe_allow_html=True)
+        else:
+            st.markdown('<div class="panel"><div class="empty">Nothing notable in this area '
+                        'right now.</div></div>', unsafe_allow_html=True)
 
     # ============================================================ BRIEF
     with tab_brief:
@@ -581,12 +862,16 @@ def terminal():
                     if st.button("📧 Email to Neil", use_container_width=True):
                         try:
                             ev = events.upcoming(datetime.now(timezone.utc), limit=5)
+                            _links = sorted(db.query_articles(limit=200, min_relevance=10),
+                                            key=lambda a: (a.get("relevance", 0),
+                                                           a.get("published_at") or ""),
+                                            reverse=True)[:10]
                             html_body = email_render.briefing_html(
                                 b["text"], b.get("edition", "Market"), load_prices(),
-                                load_spreads(), ev)
-                            subj = "Sheerstock Park — %s Briefing, %s" % (
+                                load_spreads(), ev, _links)
+                            subj = "Sheerstock Park — %s Briefing · %s" % (
                                 b.get("edition", "Market"),
-                                datetime.now(timezone.utc).strftime("%d %b"))
+                                datetime.now(timezone.utc).strftime("%a %d %b %Y"))
                             sent = mailer.send_html(subj, html_body,
                                                     email_render.briefing_text(b["text"], b.get("edition", "Market")))
                             st.success("Emailed to %s" % ", ".join(mailer.recipients())) if sent \
@@ -1002,5 +1287,67 @@ def terminal():
             st.markdown("".join(article_card(a) for a in bear) or "<div class='summary'>None right now.</div>",
                         unsafe_allow_html=True)
 
+    # ============================================================ FLOWS & RESERVES
+    with tab_flows:
+        if not eia.available():
+            st.info("💡 Add a free **EIA_API_KEY** (instant at eia.gov/opendata) to the app "
+                    "secrets to show strategic reserves, US oil flows and global production. "
+                    "Live tanker-level cargo tracking needs a paid feed (Kpler/Vortexa).")
+        else:
+            reserves = load_reserves()
+            flows = load_us_flows()
+            glob = load_global_production()
+
+            st.markdown('<div class="sec">🛡 US strategic &amp; commercial reserves · weekly '
+                        '<span style="text-transform:none;letter-spacing:0;font-weight:500">'
+                        '— a draw is bullish for crude</span></div>', unsafe_allow_html=True)
+            if reserves:
+                cols = st.columns(len(reserves))
+                for col, m in zip(cols, reserves):
+                    col.markdown(_flow_card(m, sentiment=True), unsafe_allow_html=True)
+            else:
+                st.caption("Reserve data unavailable right now.")
+
+            st.markdown('<div class="sec" style="margin-top:18px">🚢 US oil flows · weekly '
+                        '<span style="text-transform:none;letter-spacing:0;font-weight:500">'
+                        '— production, trade &amp; refining throughput</span></div>',
+                        unsafe_allow_html=True)
+            if flows:
+                cols = st.columns(len(flows))
+                for col, m in zip(cols, flows):
+                    col.markdown(_flow_card(m, sentiment=False), unsafe_allow_html=True)
+            else:
+                st.caption("Flow data unavailable right now.")
+
+            st.markdown('<div class="sec" style="margin-top:18px">🌍 Global crude production · '
+                        'top producers <span style="text-transform:none;letter-spacing:0;'
+                        'font-weight:500">— EIA International, monthly (kbbl/d)</span></div>',
+                        unsafe_allow_html=True)
+            if glob:
+                mx = max(g["value"] for g in glob) or 1
+                bars = ""
+                for g in glob:
+                    pct = 100.0 * g["value"] / mx
+                    bars += ('<div style="margin:6px 0"><div style="display:flex;justify-content:space-between;'
+                             'font-size:.82rem"><span style="color:#d7e1ec;font-weight:600">%s</span>'
+                             '<span class="num" style="color:#9fb2c4">%s</span></div>'
+                             '<div style="height:9px;background:#161f29;border-radius:5px;overflow:hidden">'
+                             '<i style="display:block;height:100%%;width:%.0f%%;background:%s"></i></div></div>') % (
+                        html.escape(str(g["country"])), "{:,.0f}".format(g["value"]), pct, ACCENT)
+                st.markdown(bars, unsafe_allow_html=True)
+                st.caption("Source: EIA International (latest available month). Monthly cadence, "
+                           "1–2 month lag. Live cargo tracking needs a paid feed.")
+            else:
+                st.caption("Global production data unavailable (EIA International). The US reserves "
+                           "and flows above are the reliable core.")
+
 
 st.fragment(terminal, run_every=("%ds" % interval) if auto else None)()
+
+st.markdown(
+    '<div style="text-align:center;color:#5b6b7a;font-size:.72rem;margin-top:26px;'
+    'padding-top:12px;border-top:1px solid var(--line)">'
+    'Sheerstock Park News Terminal · market reads are AI-assisted heuristics, not investment advice.<br>'
+    'Created by Saavan Sumray-Roots.</div>',
+    unsafe_allow_html=True,
+)

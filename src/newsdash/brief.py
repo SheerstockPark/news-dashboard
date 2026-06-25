@@ -35,28 +35,27 @@ _PER_CATEGORY = 9  # cap headlines per category so no single bucket dominates th
 
 _SYSTEM = (
     "You are the chief market strategist at Sheerstock Park, an oil-trading firm, writing the "
-    "{edition} market briefing for the principal. Crude oil and refined products are the firm's "
-    "core book, but he needs the full cross-asset picture: anything moving oil, energy, or the "
-    "broader markets he's exposed to.\n\n"
-    "Be concise, concrete and specific. Use ONLY the prices, inventories and headlines provided — "
-    "never invent numbers. Lead with what matters; a busy principal reads this in under two minutes. "
-    "Write clean GitHub-flavored Markdown.\n\n"
-    "Use these sections, each a bold header exactly as written. OMIT any section with nothing "
-    "material today rather than padding it — a shorter, sharper brief is better:\n"
-    "**📋 Snapshot** — 2-3 sentences: where crude/products and broad markets sit, the overnight "
-    "move, and the single most important thing right now.\n"
-    "**🛢 Energy & Fuel** — 3-5 bullets on crude, products, refining margins and demand. The core. "
-    "Each bullet pairs the story with its bullish/bearish read for oil.\n"
-    "**🌍 Geopolitical** — bullets on conflict, sanctions, OPEC+ politics and supply routes "
-    "(Hormuz, Red Sea, pipelines), each with the oil/market angle.\n"
-    "**📊 Macro** — bullets on rates, inflation, central banks, the dollar and growth data, and "
-    "what they imply for risk appetite and crude.\n"
-    "**🛡 Reserves & Inventories** — EIA / SPR / storage levels and the directional read (a draw is "
-    "bullish for crude). Use the inventory figures if provided.\n"
-    "**📈 Market Movers** — notable equity, index or cross-asset moves — e.g. a megacap or sector "
-    "selling off sharply and dragging an index. Call out the biggest movers from the data.\n"
-    "**👀 What to watch** — 2-3 near-term catalysts (data releases, meetings, key levels).\n\n"
-    "Keep the whole briefing under ~450 words. No preamble, no sign-off."
+    "{edition} market briefing for the principal. Crude and refined products are the core book, "
+    "but he needs the whole cross-asset tape: anything moving oil, energy or the broader markets.\n\n"
+    "VOICE — write like a senior trader briefing the desk: terse, concrete, confident. Desk jargon "
+    "is welcome (bid, offered, gapped, risk-off, backwardation, bear-flattener). Always give the "
+    "READ — direction, level, and why it matters. No hedging, no filler, no 'could potentially'. "
+    "Use ONLY the prices, inventories and headlines provided; never invent numbers.\n\n"
+    "FORMAT — clean GitHub-flavored Markdown. Each section is a bold header exactly as written "
+    "below. Every bullet is HEADLINE-STYLE: a **bold punchy headline** then ' — ' then a one-line "
+    "trader read ending in the bullish/bearish call. Lead with the biggest stories. OMIT any "
+    "section with nothing material — a short sharp brief beats a padded one.\n\n"
+    "SECTIONS, in this exact order:\n"
+    "**📰 Top Headlines** — the 3-4 most market-moving stories of the session, headline-first, each "
+    "with the immediate trade read. This is the hero — make it punchy and scannable.\n"
+    "**🛢 Energy & Fuel** — crude, products, refining margins, demand. The core book.\n"
+    "**🌍 Geopolitics** — conflict, sanctions, OPEC+ politics, supply routes (Hormuz, Red Sea).\n"
+    "**📊 Macro & Rates** — rates, inflation, central banks, the dollar, growth — and the risk read.\n"
+    "**📈 Market Movers** — big equity / index / cross-asset moves; name the largest movers.\n"
+    "**🛡 Reserves & Inventories** — EIA / SPR / storage and the directional read (a draw is bullish). "
+    "Use the inventory figures if provided; skip if nothing new.\n"
+    "**👀 On the Radar** — 2-3 near-term catalysts (data, meetings, key levels).\n\n"
+    "Keep the whole brief tight and scannable — aim for ~400 words. No preamble, no sign-off."
 )
 
 
@@ -135,6 +134,37 @@ def generate(articles: List[Dict], quotes: List[Dict], spreads: List[Dict],
     DATA_DIR.mkdir(parents=True, exist_ok=True)
     BRIEF_PATH.write_text(json.dumps(payload), encoding="utf-8")
     return payload
+
+
+_TAKE_SYSTEM = (
+    "You are a senior oil-desk strategist. In 3-4 crisp sentences give the trader's read on the "
+    "biggest stories right now: what's driving the tape and the bias for crude and broader risk. "
+    "Trader voice — concrete, confident, no hedging. Plain text only: no markdown, no bullets, no "
+    "preamble. Use only the headlines and prices provided."
+)
+
+
+def quick_take(headlines: List[Dict], quotes: List[Dict] = None) -> str:
+    """A short live 'desk read' of the top headlines for the dashboard's analysis panel.
+
+    Returns plain-text prose ('' if no API key). Cheap (Haiku, ~300 tokens) — the caller is
+    expected to cache it so the auto-refresh doesn't re-call the API on every rerun.
+    """
+    if not available():
+        return ""
+    import anthropic
+
+    lines = "\n".join(
+        "- [%s|%s] %s" % (h.get("impact", "neutral"), h.get("source_name", ""), h["title"])
+        for h in headlines[:12]
+    )
+    user = "PRICES: %s\n\nTOP HEADLINES:\n%s\n\nGive the desk read." % (
+        _price_line(quotes or [], []), lines)
+    resp = anthropic.Anthropic().messages.create(
+        model=MODEL, max_tokens=300, system=_TAKE_SYSTEM,
+        messages=[{"role": "user", "content": user}],
+    )
+    return "".join(b.text for b in resp.content if b.type == "text").strip()
 
 
 def load() -> Dict:

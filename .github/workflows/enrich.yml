@@ -1,0 +1,33 @@
+name: AI sentiment enrichment → Turso
+
+# Hourly: score the newly-ingested oil-relevant headlines with Claude (Haiku) so the
+# dashboard's impact tags, tone bar, "biggest issues" ranking and the email all run on
+# AI sentiment instead of the keyword tagger. Only scores rows not yet scored, so each
+# run touches a few dozen articles — fractions of a cent. Needs ANTHROPIC_API_KEY.
+on:
+  schedule:
+    - cron: "20 * * * *"   # hourly, offset from the ingest/alert crons
+  workflow_dispatch: {}
+
+concurrency:
+  group: enrich
+  cancel-in-progress: false
+
+jobs:
+  enrich:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - name: Install dependencies
+        run: pip install -r requirements-brief.txt
+      - name: Score new oil-relevant headlines
+        env:
+          TURSO_DATABASE_URL: ${{ secrets.TURSO_DATABASE_URL }}
+          TURSO_AUTH_TOKEN: ${{ secrets.TURSO_AUTH_TOKEN }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: python tools/enrich_sentiment.py --min-relevance 25 --limit 200
