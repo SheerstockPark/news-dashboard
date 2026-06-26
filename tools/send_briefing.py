@@ -33,6 +33,69 @@ except Exception:
     pass
 
 
+def send_briefing(edition: str = "Morning", fetch: bool = False, no_send: bool = False,
+                  min_relevance: int = 0, log=print) -> dict:
+    """Build + (optionally) email one briefing edition. Reusable by the CLI and the worker.
+
+    Returns {"sent": bool, "edition": ..., "model": ..., "html": path}. Fail-soft: never raises
+    on a send error — logs it and returns sent=False so a caller loop stays alive.
+    """
+    if not brief.available():
+        log("ANTHROPIC_API_KEY not set — cannot generate the briefing. Skipping.")
+        return {"sent": False, "edition": edition, "note": "no ANTHROPIC_API_KEY"}
+    if not no_send and not mailer.configured():
+        log("No email backend configured (set RESEND_API_KEY or SMTP_* + DIGEST_TO). "
+            "Building HTML only.")
+
+    if fetch:
+        s = ingest.run_once()
+        log("Fetched: %d new, %d/%d sources ok" % (s["new"], s["ok"], s["sources"]))
+
+    db.init_db()
+    now = datetime.now(timezone.utc)
+    articles = db.query_articles(limit=400, min_relevance=min_relevance)
+    quotes, spreads = prices.get_quotes(), prices.get_spreads()
+
+    payload = brief.generate(
+        articles, quotes, spreads,
+        equities=prices.get_quotes(prices.MARKET_MOVERS),
+        eia=eia.get_inventories(),
+        edition=edition,
+    )
+    log("%s briefing generated (%s)." % (payload["edition"], payload["model"]))
+
+    upcoming = events.upcoming(now, limit=5)
+    # Deterministic, clickable source links: the real top articles behind the brief.
+    top_links = sorted(articles, key=lambda a: (a.get("relevance", 0),
+                                                a.get("published_at") or a.get("fetched_at") or ""),
+                       reverse=True)[:10]
+    html_body = email_render.briefing_html(payload["text"], edition, quotes, spreads,
+                                           upcoming, top_links, now)
+    text_body = email_render.briefing_text(payload["text"], edition)
+
+    # Save a copy to reports/ for the record (and easy local preview).
+    reports = REPO_ROOT / "reports"
+    reports.mkdir(exist_ok=True)
+    out = reports / ("briefing-%s-%s.html" % (now.strftime("%Y%m%d"), edition.lower()))
+    out.write_text(html_body, encoding="utf-8")
+    log("Saved: %s" % out)
+
+    if no_send:
+        return {"sent": False, "edition": edition, "model": payload["model"], "html": str(out)}
+
+    subject = "Sheerstock Park — %s Briefing · %s" % (edition, now.strftime("%a %d %b %Y"))
+    try:
+        sent = mailer.send_html(subject, html_body, text_body)
+    except Exception as exc:  # noqa: BLE001 — fail-soft so the cron / worker loop stays alive
+        log("Email send failed: %s" % exc)
+        return {"sent": False, "edition": edition, "model": payload["model"], "error": str(exc)}
+    if sent:
+        log("Emailed via %s to %s" % (mailer.backend(), ", ".join(mailer.recipients())))
+    else:
+        log("Email not sent (backend unconfigured).")
+    return {"sent": bool(sent), "edition": edition, "model": payload["model"], "html": str(out)}
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description="Generate + email the AI cross-asset briefing.")
     ap.add_argument("--edition", default="Morning", help="Morning / Evening (label + subject).")
@@ -41,59 +104,8 @@ def main() -> int:
     ap.add_argument("--min-relevance", type=int, default=0)
     args = ap.parse_args()
 
-    if not brief.available():
-        print("ANTHROPIC_API_KEY not set — cannot generate the briefing. Skipping.")
-        return 0
-    if not args.no_send and not mailer.configured():
-        print("No email backend configured (set RESEND_API_KEY or SMTP_* + DIGEST_TO). "
-              "Building HTML only.")
-
-    if args.fetch:
-        s = ingest.run_once()
-        print("Fetched: %d new, %d/%d sources ok" % (s["new"], s["ok"], s["sources"]))
-
-    db.init_db()
-    now = datetime.now(timezone.utc)
-    articles = db.query_articles(limit=400, min_relevance=args.min_relevance)
-    quotes, spreads = prices.get_quotes(), prices.get_spreads()
-
-    payload = brief.generate(
-        articles, quotes, spreads,
-        equities=prices.get_quotes(prices.MARKET_MOVERS),
-        eia=eia.get_inventories(),
-        edition=args.edition,
-    )
-    print("%s briefing generated (%s)." % (payload["edition"], payload["model"]))
-
-    upcoming = events.upcoming(now, limit=5)
-    # Deterministic, clickable source links: the real top articles behind the brief.
-    top_links = sorted(articles, key=lambda a: (a.get("relevance", 0),
-                                                a.get("published_at") or a.get("fetched_at") or ""),
-                       reverse=True)[:10]
-    html_body = email_render.briefing_html(payload["text"], args.edition, quotes, spreads,
-                                           upcoming, top_links, now)
-    text_body = email_render.briefing_text(payload["text"], args.edition)
-
-    # Save a copy to reports/ for the record (and easy local preview).
-    reports = REPO_ROOT / "reports"
-    reports.mkdir(exist_ok=True)
-    out = reports / ("briefing-%s-%s.html" % (now.strftime("%Y%m%d"), args.edition.lower()))
-    out.write_text(html_body, encoding="utf-8")
-    print("Saved: %s" % out)
-
-    if args.no_send:
-        return 0
-
-    subject = "Sheerstock Park — %s Briefing · %s" % (args.edition, now.strftime("%a %d %b %Y"))
-    try:
-        sent = mailer.send_html(subject, html_body, text_body)
-    except Exception as exc:  # noqa: BLE001 — fail-soft so the cron stays green
-        print("Email send failed: %s" % exc)
-        return 0
-    if sent:
-        print("Emailed via %s to %s" % (mailer.backend(), ", ".join(mailer.recipients())))
-    else:
-        print("Email not sent (backend unconfigured).")
+    send_briefing(edition=args.edition, fetch=args.fetch, no_send=args.no_send,
+                  min_relevance=args.min_relevance)
     return 0
 
 
