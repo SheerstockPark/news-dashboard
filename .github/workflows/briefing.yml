@@ -6,9 +6,13 @@ name: Email briefing → Neil
 # 06:00 and 20:00 UK. In GMT (winter) they'd arrive an hour earlier; bump each cron +1h if
 # you want them pinned to 06:00/20:00 year-round.
 on:
-  schedule:
-    - cron: "0 5 * * *"    # morning — 06:00 UK (BST)
-    - cron: "0 19 * * *"   # evening — 20:00 UK (BST)
+  # Schedule disabled — the always-on Railway worker (tools/worker.py) now sends the 06:00/20:00
+  # briefings punctually, and the GitHub send path doesn't share the worker's per-day dedupe, so
+  # running both would double-send. Kept here (commented) as a record; re-enable only if the
+  # worker is retired. Manual runs still work via the "Run workflow" button below.
+  # schedule:
+  #   - cron: "0 5 * * *"    # morning — 06:00 UK (BST)
+  #   - cron: "0 19 * * *"   # evening — 20:00 UK (BST)
   workflow_dispatch:
     inputs:
       edition:
