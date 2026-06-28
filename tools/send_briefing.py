@@ -33,19 +33,18 @@ except Exception:
     pass
 
 
-def send_briefing(edition: str = "Morning", fetch: bool = False, no_send: bool = False,
-                  min_relevance: int = 0, log=print) -> dict:
-    """Build + (optionally) email one briefing edition. Reusable by the CLI and the worker.
+def build_briefing(edition: str = "Morning", fetch: bool = False,
+                   min_relevance: int = 0, log=print) -> dict:
+    """Generate + render one briefing edition into a ready-to-send email — NO send.
 
-    Returns {"sent": bool, "edition": ..., "model": ..., "html": path}. Fail-soft: never raises
-    on a send error — logs it and returns sent=False so a caller loop stays alive.
+    Returns {"subject", "html", "text", "model", "edition", "path"} or {} if it can't build
+    (e.g. no ANTHROPIC_API_KEY). Splitting build from send lets the worker generate once and
+    then retry *sending* on later ticks without re-paying for generation — important when the
+    send path is temporarily failing (e.g. a blocked SMTP egress).
     """
     if not brief.available():
         log("ANTHROPIC_API_KEY not set — cannot generate the briefing. Skipping.")
-        return {"sent": False, "edition": edition, "note": "no ANTHROPIC_API_KEY"}
-    if not no_send and not mailer.configured():
-        log("No email backend configured (set RESEND_API_KEY or SMTP_* + DIGEST_TO). "
-            "Building HTML only.")
+        return {}
 
     if fetch:
         s = ingest.run_once()
@@ -80,20 +79,39 @@ def send_briefing(edition: str = "Morning", fetch: bool = False, no_send: bool =
     out.write_text(html_body, encoding="utf-8")
     log("Saved: %s" % out)
 
-    if no_send:
-        return {"sent": False, "edition": edition, "model": payload["model"], "html": str(out)}
-
     subject = "Sheerstock Park — %s Briefing · %s" % (edition, now.strftime("%a %d %b %Y"))
+    return {"subject": subject, "html": html_body, "text": text_body,
+            "model": payload["model"], "edition": edition, "path": str(out)}
+
+
+def send_briefing(edition: str = "Morning", fetch: bool = False, no_send: bool = False,
+                  min_relevance: int = 0, log=print) -> dict:
+    """Build + (optionally) email one briefing edition. Reusable by the CLI and the worker.
+
+    Returns {"sent": bool, "edition": ..., "model": ..., "html": path}. Fail-soft: never raises
+    on a send error — logs it and returns sent=False so a caller loop stays alive.
+    """
+    if not no_send and not mailer.configured():
+        log("No email backend configured (set RESEND_API_KEY or SMTP_* + DIGEST_TO). "
+            "Building HTML only.")
+
+    built = build_briefing(edition, fetch=fetch, min_relevance=min_relevance, log=log)
+    if not built:
+        return {"sent": False, "edition": edition, "note": "could not build"}
+
+    if no_send:
+        return {"sent": False, "edition": edition, "model": built["model"], "html": built["path"]}
+
     try:
-        sent = mailer.send_html(subject, html_body, text_body)
+        sent = mailer.send_html(built["subject"], built["html"], built["text"])
     except Exception as exc:  # noqa: BLE001 — fail-soft so the cron / worker loop stays alive
         log("Email send failed: %s" % exc)
-        return {"sent": False, "edition": edition, "model": payload["model"], "error": str(exc)}
+        return {"sent": False, "edition": edition, "model": built["model"], "error": str(exc)}
     if sent:
         log("Emailed via %s to %s" % (mailer.backend(), ", ".join(mailer.recipients())))
     else:
         log("Email not sent (backend unconfigured).")
-    return {"sent": bool(sent), "edition": edition, "model": payload["model"], "html": str(out)}
+    return {"sent": bool(sent), "edition": edition, "model": built["model"], "html": built["path"]}
 
 
 def main() -> int:

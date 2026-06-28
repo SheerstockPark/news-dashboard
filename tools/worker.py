@@ -32,6 +32,7 @@ import os
 import sys
 import time
 from datetime import datetime, timezone
+from typing import Dict
 
 try:
     from zoneinfo import ZoneInfo
@@ -42,7 +43,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."
 
 from newsdash import REPO_ROOT  # noqa: E402
 from newsdash import alerts, db, ingest, mailer  # noqa: E402
-from send_briefing import send_briefing  # noqa: E402  (sibling tool)
+from send_briefing import build_briefing  # noqa: E402  (sibling tool)
 
 try:
     from dotenv import load_dotenv  # noqa: E402
@@ -58,6 +59,11 @@ _EDITIONS = [
     {"edition": "Morning", "scope": "briefing-morning", "start": 6,  "until": 12},
     {"edition": "Evening", "scope": "briefing-evening", "start": 20, "until": 24},
 ]
+
+# Generated-but-not-yet-sent briefings, keyed by scope → {"date", "subject", "html", "text"}.
+# Lets us build a briefing once and retry only the *send* on later ticks (no re-generation, so a
+# temporarily failing send path — e.g. blocked SMTP — doesn't re-pay for the brief every minute).
+_PENDING: Dict[str, dict] = {}
 
 
 def _log(msg: str) -> None:
@@ -98,14 +104,26 @@ def tick() -> None:
         now_uk = datetime.now(UK)
         e, today = _due_edition(now_uk)
         if e:
-            _log("%s briefing due (UK %s) — generating…" % (e["edition"], now_uk.strftime("%H:%M")))
-            res = send_briefing(edition=e["edition"], fetch=False, log=_log)
-            if res.get("sent"):
-                db.mark_alerted([today], e["scope"])  # mark only on confirmed send → retries next tick
-                _log("%s briefing sent + marked for %s." % (e["edition"], today))
+            cached = _PENDING.get(e["scope"])
+            if cached and cached.get("date") == today:
+                built = cached  # built earlier this window; just retry the send (no re-generate)
+                _log("%s briefing already generated — retrying send only." % e["edition"])
             else:
-                _log("%s briefing NOT sent (%s) — will retry next tick."
-                     % (e["edition"], res.get("error") or res.get("note") or "unknown"))
+                _log("%s briefing due (UK %s) — generating…" % (e["edition"], now_uk.strftime("%H:%M")))
+                built = build_briefing(edition=e["edition"], fetch=False, log=_log)
+                if built:
+                    built["date"] = today
+                    _PENDING[e["scope"]] = built
+            if built:
+                try:
+                    ok = mailer.send_html(built["subject"], built["html"], built["text"])
+                except Exception as exc:  # noqa: BLE001
+                    _log("%s briefing send FAILED (%s) — will retry send next tick." % (e["edition"], exc))
+                    ok = False
+                if ok:
+                    db.mark_alerted([today], e["scope"])  # mark only on confirmed send
+                    _PENDING.pop(e["scope"], None)
+                    _log("%s briefing sent + marked for %s." % (e["edition"], today))
     except Exception as exc:  # noqa: BLE001
         _log("briefing step FAILED: %s" % exc)
 
