@@ -1,0 +1,34 @@
+name: Re-tag backlog (current rules)
+
+# One-shot backfill: recompute relevance/tags/impact for recent articles in the cloud DB with
+# the CURRENT tagging rules. Run manually after any tagging.py improvement so the dashboard's
+# backlog stops showing stale labels. Deterministic keywords only — no API calls, no cost.
+on:
+  workflow_dispatch:
+    inputs:
+      limit:
+        description: How many most-recent articles to re-score
+        type: string
+        default: "2000"
+
+concurrency:
+  group: retag
+  cancel-in-progress: false
+
+jobs:
+  retag:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - name: Install dependencies
+        run: pip install libsql python-dotenv PyYAML
+      - name: Re-score recent articles
+        env:
+          TURSO_DATABASE_URL: ${{ secrets.TURSO_DATABASE_URL }}
+          TURSO_AUTH_TOKEN: ${{ secrets.TURSO_AUTH_TOKEN }}
+        run: python tools/retag.py --limit "${{ github.event.inputs.limit }}"
