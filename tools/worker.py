@@ -42,7 +42,7 @@ except ImportError:  # pragma: no cover — Python < 3.9
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "src"))
 
 from newsdash import REPO_ROOT  # noqa: E402
-from newsdash import alerts, db, ingest, mailer  # noqa: E402
+from newsdash import alerts, brief, db, ingest, mailer  # noqa: E402
 from send_briefing import build_briefing  # noqa: E402  (sibling tool)
 
 try:
@@ -69,6 +69,29 @@ _PENDING: Dict[str, dict] = {}
 def _log(msg: str) -> None:
     stamp = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%SZ")
     print("[%s] %s" % (stamp, msg), flush=True)
+
+
+def _start_health_server() -> None:
+    """Answer HTTP health checks when PORT is set — free hosts like Koyeb only keep a
+    service alive if it listens on their assigned port. No-op elsewhere (e.g. Railway)."""
+    port = os.environ.get("PORT")
+    if not port:
+        return
+    import threading
+    from http.server import BaseHTTPRequestHandler, HTTPServer
+
+    class _Health(BaseHTTPRequestHandler):
+        def do_GET(self):  # noqa: N802
+            self.send_response(200)
+            self.end_headers()
+            self.wfile.write(b"ok")
+
+        def log_message(self, *args):  # silence per-request lines
+            pass
+
+    server = HTTPServer(("0.0.0.0", int(port)), _Health)
+    threading.Thread(target=server.serve_forever, daemon=True).start()
+    _log("Health server listening on :%s." % port)
 
 
 def _due_edition(now_uk: datetime):
@@ -100,6 +123,11 @@ def tick() -> None:
         _log("urgent FAILED: %s" % exc)
 
     # 3) Scheduled briefing, if one is due in its window and not yet sent today.
+    # Without an ANTHROPIC_API_KEY the worker does ingest + urgent alerts only — briefing
+    # generation then belongs to whatever else owns it (e.g. a scheduled Claude routine that
+    # dispatches briefing.yml). The DB per-day mark keeps all senders mutually deduped.
+    if not brief.available():
+        return
     try:
         now_uk = datetime.now(UK)
         e, today = _due_edition(now_uk)
@@ -134,11 +162,16 @@ def main() -> int:
     ap.add_argument("--once", action="store_true", help="Run a single tick and exit (smoke test).")
     args = ap.parse_args()
 
+    _start_health_server()
     if not mailer.configured():
         _log("No email backend (set RESEND_API_KEY or SMTP_* + DIGEST_TO). Worker idling.")
     _log("Worker up. Email backend: %s · recipients: %s"
          % (mailer.backend(), ", ".join(mailer.recipients()) or "(none)"))
-    _log("Briefings: Morning 06:00 UK, Evening 20:00 UK · urgent check every %ds." % args.interval)
+    if brief.available():
+        _log("Briefings: Morning 06:00 UK, Evening 20:00 UK · urgent check every %ds." % args.interval)
+    else:
+        _log("No ANTHROPIC_API_KEY — ingest + urgent alerts only (briefings owned elsewhere). "
+             "Urgent check every %ds." % args.interval)
 
     if args.once:
         tick()

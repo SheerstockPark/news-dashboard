@@ -1,25 +1,40 @@
 name: Email briefing → Neil
 
-# Generates the AI cross-asset briefing (macro / geopolitical / energy / reserves / market
-# movers) and emails it twice a day. Reads the live Turso DB, so it works even when the
-# dashboard isn't open. Times are UTC — set for British Summer Time (BST, +1) so they land
-# 06:00 and 20:00 UK. In GMT (winter) they'd arrive an hour earlier; bump each cron +1h if
-# you want them pinned to 06:00/20:00 year-round.
+# Renders + emails the cross-asset briefing (macro / geopolitical / energy / reserves /
+# market movers). Reads the live Turso DB, so it works even when the dashboard isn't open.
+#
+# Two ways to get the prose:
+#   * brief_text input provided  → email that text (written by a scheduled Claude routine on
+#     the subscription — no API credit used).
+#   * no brief_text              → generate with the Claude API (needs ANTHROPIC_API_KEY credit).
+#
+# Delivery is deduped per UK day in the DB (alert_state scope briefing-<edition>), so this,
+# the always-on worker, and any catch-up cron can all be active without double-sending —
+# whoever delivers first today wins. GitHub runners can send SMTP (unlike some PaaS hosts),
+# which is why this is the reliable send path.
 on:
-  # Schedule disabled — the always-on Railway worker (tools/worker.py) now sends the 06:00/20:00
-  # briefings punctually, and the GitHub send path doesn't share the worker's per-day dedupe, so
-  # running both would double-send. Kept here (commented) as a record; re-enable only if the
-  # worker is retired. Manual runs still work via the "Run workflow" button below.
+  # Schedules stay off while a scheduled Claude routine owns briefing delivery (it dispatches
+  # this workflow with brief_text). If the routine is ever retired, re-enable these crons —
+  # the per-day dedupe makes it safe to oversample several lines per window.
   # schedule:
   #   - cron: "0 5 * * *"    # morning — 06:00 UK (BST)
   #   - cron: "0 19 * * *"   # evening — 20:00 UK (BST)
   workflow_dispatch:
     inputs:
       edition:
-        description: Edition label (manual run)
+        description: Edition label
         type: choice
         options: [Morning, Evening]
         default: Morning
+      brief_text:
+        description: Pre-written briefing Markdown (skips the Claude API call)
+        type: string
+        required: false
+        default: ""
+      force:
+        description: Send even if a briefing already went out today
+        type: boolean
+        default: false
 
 concurrency:
   group: briefing
@@ -47,7 +62,19 @@ jobs:
           else
             echo "edition=Morning" >> "$GITHUB_OUTPUT"
           fi
-      - name: Generate + email the briefing
+      - name: Stage provided brief text (if any)
+        id: pre
+        env:
+          BRIEF_TEXT: ${{ github.event.inputs.brief_text }}
+        run: |
+          mkdir -p .tmp
+          if [ -n "$BRIEF_TEXT" ]; then
+            printf '%s' "$BRIEF_TEXT" > .tmp/brief.md
+            echo "args=--text-file .tmp/brief.md" >> "$GITHUB_OUTPUT"
+          else
+            echo "args=" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Render + email the briefing
         env:
           TURSO_DATABASE_URL: ${{ secrets.TURSO_DATABASE_URL }}
           TURSO_AUTH_TOKEN: ${{ secrets.TURSO_AUTH_TOKEN }}
@@ -60,4 +87,7 @@ jobs:
           SMTP_PORT: ${{ secrets.SMTP_PORT }}
           SMTP_USER: ${{ secrets.SMTP_USER }}
           SMTP_PASS: ${{ secrets.SMTP_PASS }}
-        run: python tools/send_briefing.py --edition "${{ steps.ed.outputs.edition }}" --fetch
+        run: >
+          python tools/send_briefing.py --edition "${{ steps.ed.outputs.edition }}" --fetch
+          ${{ steps.pre.outputs.args }}
+          ${{ github.event.inputs.force == 'true' && '--force' || '' }}

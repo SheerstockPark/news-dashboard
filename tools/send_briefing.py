@@ -34,15 +34,19 @@ except Exception:
 
 
 def build_briefing(edition: str = "Morning", fetch: bool = False,
-                   min_relevance: int = 0, log=print) -> dict:
+                   min_relevance: int = 0, log=print, brief_text: str = None) -> dict:
     """Generate + render one briefing edition into a ready-to-send email — NO send.
 
     Returns {"subject", "html", "text", "model", "edition", "path"} or {} if it can't build
     (e.g. no ANTHROPIC_API_KEY). Splitting build from send lets the worker generate once and
     then retry *sending* on later ticks without re-paying for generation — important when the
     send path is temporarily failing (e.g. a blocked SMTP egress).
+
+    brief_text: pre-written briefing Markdown (same **section** + bullet shape the generator
+    produces). Skips the Claude call entirely — used when something else wrote the prose, e.g.
+    a scheduled Claude routine running on a subscription instead of API credit.
     """
-    if not brief.available():
+    if brief_text is None and not brief.available():
         log("ANTHROPIC_API_KEY not set — cannot generate the briefing. Skipping.")
         return {}
 
@@ -55,13 +59,17 @@ def build_briefing(edition: str = "Morning", fetch: bool = False,
     articles = db.query_articles(limit=400, min_relevance=min_relevance)
     quotes, spreads = prices.get_quotes(), prices.get_spreads()
 
-    payload = brief.generate(
-        articles, quotes, spreads,
-        equities=prices.get_quotes(prices.MARKET_MOVERS),
-        eia=eia.get_inventories(),
-        edition=edition,
-    )
-    log("%s briefing generated (%s)." % (payload["edition"], payload["model"]))
+    if brief_text is not None:
+        payload = {"text": brief_text, "edition": edition, "model": "provided"}
+        log("%s briefing text provided (%d chars) — skipping generation." % (edition, len(brief_text)))
+    else:
+        payload = brief.generate(
+            articles, quotes, spreads,
+            equities=prices.get_quotes(prices.MARKET_MOVERS),
+            eia=eia.get_inventories(),
+            edition=edition,
+        )
+        log("%s briefing generated (%s)." % (payload["edition"], payload["model"]))
 
     upcoming = events.upcoming(now, limit=5)
     # Deterministic, clickable source links: the real top articles behind the brief.
@@ -84,18 +92,42 @@ def build_briefing(edition: str = "Morning", fetch: bool = False,
             "model": payload["model"], "edition": edition, "path": str(out)}
 
 
+def _uk_today() -> str:
+    try:
+        from zoneinfo import ZoneInfo
+        return datetime.now(ZoneInfo("Europe/London")).strftime("%Y-%m-%d")
+    except Exception:  # pragma: no cover
+        return datetime.now(timezone.utc).strftime("%Y-%m-%d")
+
+
 def send_briefing(edition: str = "Morning", fetch: bool = False, no_send: bool = False,
-                  min_relevance: int = 0, log=print) -> dict:
+                  min_relevance: int = 0, log=print, brief_text: str = None,
+                  force: bool = False) -> dict:
     """Build + (optionally) email one briefing edition. Reusable by the CLI and the worker.
+
+    Delivery is deduped per UK day via alert_state scope 'briefing-<edition>' — the same mark
+    the worker and the watchdog use. That makes every sender (worker, GitHub cron, a scheduled
+    routine) mutually exclusive: whoever sends first today wins, the rest skip. force=True
+    overrides the skip for deliberate manual re-sends.
 
     Returns {"sent": bool, "edition": ..., "model": ..., "html": path}. Fail-soft: never raises
     on a send error — logs it and returns sent=False so a caller loop stays alive.
     """
+    scope = "briefing-" + edition.strip().lower()
+    today = _uk_today()
+    if not no_send and not force:
+        db.init_db()
+        if today in db.alerted_ids(scope):
+            log("%s briefing already delivered today (%s) — skipping (use --force to re-send)."
+                % (edition, today))
+            return {"sent": False, "edition": edition, "note": "already sent today"}
+
     if not no_send and not mailer.configured():
         log("No email backend configured (set RESEND_API_KEY or SMTP_* + DIGEST_TO). "
             "Building HTML only.")
 
-    built = build_briefing(edition, fetch=fetch, min_relevance=min_relevance, log=log)
+    built = build_briefing(edition, fetch=fetch, min_relevance=min_relevance, log=log,
+                           brief_text=brief_text)
     if not built:
         return {"sent": False, "edition": edition, "note": "could not build"}
 
@@ -108,6 +140,7 @@ def send_briefing(edition: str = "Morning", fetch: bool = False, no_send: bool =
         log("Email send failed: %s" % exc)
         return {"sent": False, "edition": edition, "model": built["model"], "error": str(exc)}
     if sent:
+        db.mark_alerted([today], scope)  # confirmed-delivery mark: dedupe + watchdog heartbeat
         log("Emailed via %s to %s" % (mailer.backend(), ", ".join(mailer.recipients())))
     else:
         log("Email not sent (backend unconfigured).")
@@ -120,10 +153,23 @@ def main() -> int:
     ap.add_argument("--fetch", action="store_true", help="Ingest fresh feeds first.")
     ap.add_argument("--no-send", action="store_true", help="Build + save HTML only; don't email.")
     ap.add_argument("--min-relevance", type=int, default=0)
+    ap.add_argument("--text-file", default=None,
+                    help="Path to pre-written briefing Markdown — skips the Claude call "
+                         "(for prose written by a scheduled Claude routine).")
+    ap.add_argument("--force", action="store_true",
+                    help="Send even if a briefing was already delivered today.")
     args = ap.parse_args()
 
+    brief_text = None
+    if args.text_file:
+        with open(args.text_file, encoding="utf-8") as fh:
+            brief_text = fh.read().strip()
+        if not brief_text:
+            print("--text-file %s is empty — refusing to send a blank briefing." % args.text_file)
+            return 1
+
     send_briefing(edition=args.edition, fetch=args.fetch, no_send=args.no_send,
-                  min_relevance=args.min_relevance)
+                  min_relevance=args.min_relevance, brief_text=brief_text, force=args.force)
     return 0
 
 

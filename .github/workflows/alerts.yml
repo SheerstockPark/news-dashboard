@@ -5,12 +5,12 @@ name: Urgent headline alerts → Neil
 # not oil-only). Dedupe lives in the Turso DB so each story emails at most once. The first
 # run on a fresh DB baselines the backlog silently (no blast).
 on:
-  # Schedule disabled — the always-on Railway worker (tools/worker.py) now checks urgent
-  # headlines every ~60s (genuinely instant vs this 15-min cron). Urgent dedupe is per-article in
-  # Turso, so both running wouldn't double-send, but there's no need to run both. Manual runs
-  # still work via "Run workflow". Re-enable this cron only if the worker is retired.
-  # schedule:
-  #   - cron: "*/15 * * * *"
+  # Runs ALONGSIDE the always-on worker (tools/worker.py): the worker gives ~1-min alerts when
+  # its host is healthy; this cron is the independent backup sweep (GitHub runners can send
+  # SMTP; some PaaS hosts block it). Per-article dedupe in Turso means the two paths can never
+  # double-send — whichever sees a story first sends it, the other skips.
+  schedule:
+    - cron: "*/15 * * * *"
   workflow_dispatch: {}
 
 concurrency:
