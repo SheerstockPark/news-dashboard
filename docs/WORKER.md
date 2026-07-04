@@ -1,64 +1,30 @@
-# Always-on worker — punctual briefings + genuinely instant (~1 min) urgent alerts
+# Time-sensitive sends — current architecture (and the retired worker)
 
-GitHub Actions `schedule:` is **best-effort**: it openly delays or drops cron events. On this
-repo it was silently missing the 06:00/20:00 briefings *and* never firing the urgent-alert cron
-at all. The fix is one tiny always-on worker that owns everything time-sensitive, so GitHub is
-just backup.
+> **Status July 2026: no always-on host is used — and none is needed.** This file previously
+> documented deploying `tools/worker.py` on Railway/Koyeb. Both paths are retired: **Railway
+> blocks outbound SMTP** (every send failed with `[Errno 101]`; project deleted) and **Koyeb
+> dropped its free tier** ($29/mo paywall at signup). Everything now runs on free GitHub
+> infrastructure. Do not follow old copies of this runbook.
 
-`tools/worker.py` runs a single 60-second loop. Each tick it:
+## What runs where today
 
-1. Pulls fresh feeds into Turso.
-2. Emails any **very-big NEW** headline — instant urgent alerts (~1 min, not 15).
-3. At **06:00 UK** sends the Morning briefing; at **20:00 UK** the Evening one — fired by a real
-   clock, not GitHub's scheduler.
+| Job | Mechanism | Latency / schedule |
+|---|---|---|
+| 🚨 Urgent alerts | `.github/workflows/urgent-loop.yml` — hourly relay, each run polls every 60s for ~58 min (public repo = free unlimited runner minutes) | ~1 min |
+| 🚨 Urgent backup | `.github/workflows/alerts.yml` — independent */15 sweep covering relay gaps | ≤15 min |
+| 🌅🌆 Briefings | Scheduled Claude routines (subscription, no API credit) write the prose → dispatch `briefing.yml` → GitHub runner emails via SMTP. See `docs/ROUTINES.md` + `docs/routine-prompts/` | 06:00 / 20:00 UK |
+| 📄 Weekly Desk Review | Same routine mechanism, `edition=Weekly` | Sat 09:00 UK |
+| 🐕 Watchdog | `.github/workflows/watchdog.yml` — fails loudly if no confirmed delivery in 26h | 2×/day |
 
-```
-python tools/worker.py --interval 60
-```
+Safety properties: every sender marks confirmed deliveries in Turso (`alert_state`), so any
+combination of senders is double-send-proof, and the watchdog reads the same marks.
 
-All dedupe lives in Turso, so a restart never double-sends or re-blasts a backlog:
-urgent alerts dedupe per-article (scope `urgent`); briefings dedupe per-day
-(scope `briefing-morning` / `briefing-evening`, keyed on the UK date). Briefings use a catch-up
-window — Morning fires anytime in [06:00, 12:00) if it hasn't gone yet today, so a 06:00 outage
-still delivers when the worker wakes (exactly the miss we just had). The `Procfile` declares this
-as the `worker` process.
+## If an always-on host is ever wanted again
 
-## Recommended host: Railway (simplest, ~$5/mo hobby)
-
-1. Go to **railway.app** → sign in with GitHub.
-2. **New Project → Deploy from GitHub repo →** pick `SheerstockPark/news-dashboard`.
-3. Railway detects Python + the `Procfile` and starts the `worker` process (no web port needed).
-4. Open the service → **Variables** → add the same secrets the dashboard/cron use:
-   - `TURSO_DATABASE_URL`
-   - `TURSO_AUTH_TOKEN`
-   - `ANTHROPIC_API_KEY`  (the briefings need this)
-   - `DIGEST_TO`  (e.g. `neil@sheerstockpark.com,saavan.s98@gmail.com`)
-   - `EIA_API_KEY`  (optional — inventory/reserve numbers in the brief)
-   - **Email backend — one of:**
-     - Gmail/SMTP: `SMTP_USER`, `SMTP_PASS` (+ optional `SMTP_HOST`, `SMTP_PORT`, `DIGEST_FROM`)
-     - or Resend: `RESEND_API_KEY` (+ optional `DIGEST_FROM`)
-5. **Deploy.** Watch the logs:
-   - `Worker up. Email backend: smtp …` on boot.
-   - First urgent pass prints `Baselined N existing articles` (no backlog blast).
-   - Then `ingest: … new` + `urgent: 0 emailed` each minute until something big breaks.
-   - At 06:00/20:00 UK: `Morning briefing due … sent + marked`.
-
-The worker uses ~256–512 MB and runs 24/7 — fits the Railway hobby plan (~$5/mo). **Fly.io** and
-**Koyeb** also work (Koyeb has a free nano instance) — same command and env vars via their
-buildpack/Dockerfile flow.
-
-## After the worker is confirmed running
-
-The worker is now the single source of truth for sends, so disable the GitHub `schedule:` blocks
-(keep `workflow_dispatch` for manual catch-up runs):
-
-- `.github/workflows/alerts.yml` — comment out `schedule:` (worker does urgent now).
-- `.github/workflows/briefing.yml` — comment out `schedule:` (worker does briefings now).
-
-Keep these on GitHub Actions:
-- `ingest.yml` — baseline feed pull + prune of old rows (the worker also fetches; this is backup).
-- `enrich.yml` — hourly AI sentiment scoring.
-
-> Why disable rather than leave as backup: urgent alerts dedupe across both safely (per-article),
-> but the GitHub briefing path doesn't check the per-day scope, so if GitHub's scheduler ever
-> revived you could get a duplicate briefing. One owner = no doubles.
+`tools/worker.py` still works and does everything in one 60s loop (ingest + instant urgent +
+punctual briefings). Requirements for a host: **outbound SMTP not blocked** (or set
+`RESEND_API_KEY` — HTTPS — instead), env vars `TURSO_DATABASE_URL`, `TURSO_AUTH_TOKEN`,
+`SMTP_USER`, `SMTP_PASS`, `DIGEST_TO`, `DIGEST_FROM` (+ `ANTHROPIC_API_KEY` only if the worker
+should also generate briefings, `BRIEFING_EXTRA_TO` for briefing-only recipients). It answers
+health checks on `$PORT` for hosts that require a web service. The `Procfile` declares it —
+and must stay a single line: Railway parsed comment lines containing colons as extra services.

@@ -21,7 +21,16 @@ GitHub connected (App installed on `SheerstockPark/news-dashboard`) — creation
 Config: environment `Default`, model `claude-sonnet-5`, source repo
 `https://github.com/SheerstockPark/news-dashboard`, tools Bash/Read/Write/Edit/Glob/Grep.
 
-## The routine prompt (swap Morning/Evening + the delivery filename)
+## The verbatim prompts — use these, do not re-derive
+
+The exact prompt text for each routine lives in **`docs/routine-prompts/morning.md`,
+`evening.md`, `weekly.md`** — paste each file's full contents as the routine's message when
+creating it. They encode the quality bar (Desk Take, second-order reads, never-invent rules)
+and the two-path delivery (dispatch → push fallback). One caveat to check at creation time:
+the crons are pinned to UK **BST** (UTC+1); when the clocks change in late October, shift each
+cron +1h to keep 06:00/20:00/09:00 UK landings.
+
+## The prompt shape (summary — the files above are canonical)
 
 1. **Setup** — `pip install feedparser PyYAML requests python-dotenv yfinance` (fail-soft; no
    `anthropic` — the routine writes the prose itself).
