@@ -27,9 +27,22 @@ Config: environment `Default`, model `claude-sonnet-5`, source repo
 2. **Headlines** — `python tools/fetch_rss.py` into the local SQLite (no cloud creds), then
    query the freshest ~120 via `newsdash.db.query_articles`.
 3. **Prices** (best effort) — yfinance: BZ=F, CL=F, ^GSPC, ^IXIC, ^VIX, DX-Y.NYB, GC=F.
-4. **Write** — exact brief.py Markdown shape (**📰 Top Headlines / 🛢 Energy & Fuel /
+4. **Write** — sections, in order: **⚡ Desk Take / 📰 Top Headlines / 🛢 Energy & Fuel /
    🌍 Geopolitics / 📊 Macro & Rates / 📈 Market Movers / 🛡 Reserves & Inventories /
-   👀 On the Radar**), terse trader voice, 3–6 bullets/section, never invent facts.
+   👀 On the Radar** (bold headers, dash bullets, no title/preamble/code fences).
+   Quality bar (see reports/briefing-20260704-evening.html for the reference sample):
+   - **⚡ Desk Take** = 1–2 sentences, the single most important tension of the day (what's
+     supporting price vs what's capping it) + a posture cue. This is what gets read on a phone.
+   - Every bullet = *what happened* + *why the desk cares*, with direction (bullish/bearish)
+     where honest. Weave the actual numbers into the prose (Brent level + %, spreads).
+   - Prioritise ruthlessly: 3–6 bullets/section, omit an empty section, collapse duplicate
+     coverage of the same story into its strongest version.
+   - Call out divergences and second-order reads (e.g. gasoline down while crude up = demand
+     peak passing; rotation vs risk-off in equities).
+   - Weekend/holiday awareness: markets closed → say so; frame Morning as day-ahead, Evening
+     as recap + what the overnight/next session brings.
+   - NEVER invent facts not present in the gathered headlines/prices; if data is missing
+     (prices failed etc.), write around it rather than guessing.
 5. **Deliver** — try in order:
    a. `gh workflow run briefing.yml --repo SheerstockPark/news-dashboard --ref main -f edition=Morning -F brief_text=@/tmp/brief.md`
    b. fallback: commit the prose to `briefs/pending-morning.md` and push to main — the
