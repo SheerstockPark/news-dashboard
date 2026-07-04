@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Sheerstock Park — What We Build Next</title>
+<title>Sheerstock Park — The Multi-Asset Programme</title>
 <style>
   * { box-sizing: border-box; }
   body { margin: 0; font-family: -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
@@ -28,6 +28,7 @@
   .opt li { margin: 3px 0; font-size: 13.5px; }
   .meta { color:#7a8696; font-size: 12.5px; margin-top: 8px; }
   b.k { color:#0b1422; }
+  .arrow { text-align:center; color:#ff7a18; font-size:20px; margin:-4px 0; font-weight:800; }
   .rec { background:#f2fbf6; border:1px solid #cdeeda; border-radius: 12px; padding: 14px 18px;
          margin: 16px 0 6px; }
   .rec h3 { margin: 0 0 6px; font-size: 14.5px; color: #10643c; text-transform: uppercase;
@@ -42,75 +43,85 @@
 <div class="page">
 
   <div class="hdr">
-    <div class="brand">SHEERSTOCK&nbsp;PARK <span>·</span> What We Build Next</div>
-    <div class="sub">Proposed new internal systems — following the invoice-reconciliation dashboard and the News Terminal</div>
+    <div class="brand">SHEERSTOCK&nbsp;PARK <span>·</span> The Multi-Asset Programme</div>
+    <div class="sub">From oil desk to multi-asset firm — the infrastructure for expanding into indices, bonds &amp; FX</div>
   </div>
 
-  <p class="lead">Two systems are now live: the <b class="k">invoice-reconciliation dashboard</b>
-  (back office) and the <b class="k">News Terminal</b> (market intelligence — dashboard, twice-daily
-  briefings, weekly desk review, instant alerts). The same approach — AI + automation, built
-  in-house, essentially zero running cost — can be pointed at the next problem. Four candidates:</p>
+  <p class="lead">The News Terminal was step one of a bigger picture: Sheerstock Park trading
+  beyond oil. A desk can't trade a new market until it can <b class="k">watch</b> it,
+  <b class="k">understand</b> what moves it, and <b class="k">prove</b> it has an edge — before
+  risking capital. This programme builds those three layers, in order. Each is independently
+  useful; together they de-risk the whole expansion.</p>
 
-  <h2>Option A — Contract Intelligence Vault</h2>
+  <h2>Phase 1 — The Multi-Asset Cockpit <span style="font-size:11px;color:#7a8696">the watching layer</span></h2>
   <div class="opt">
-    <h3>Every agreement, searchable and self-monitoring <span class="for">partner-level</span></h3>
-    <p>Drop contracts, confirmations and agreements into one private vault. AI reads each one and
-    extracts what matters — parties, dates, quantities, payment terms, notice periods, renewal
-    deadlines — into a live register.</p>
+    <h3>The Terminal's DNA, pointed at every market</h3>
+    <p>Extend the proven machinery — live prices, curated news, AI reads, alerts — to the
+    expansion targets:</p>
     <ul>
-      <li><b class="k">Ask it questions in plain English:</b> "what payment terms did we agree with
-      X?" · "which agreements renew this quarter?" — answered with the clause quoted.</li>
-      <li><b class="k">Never miss a date:</b> automatic reminders ahead of expiries, renewals and
-      notice windows.</li>
-      <li><b class="k">One source of truth</b> instead of folders, inboxes and memory.</li>
+      <li><b class="k">Rates &amp; bonds:</b> the yield curve live (2y/10y/30y), bond futures,
+      curve shape and its changes — the market that drives all others.</li>
+      <li><b class="k">Indices &amp; vol:</b> S&amp;P, Nasdaq, FTSE, DAX futures, VIX — with the
+      big-mover detection already built.</li>
+      <li><b class="k">FX &amp; gold:</b> dollar regime, majors, havens.</li>
+      <li><b class="k">A daily AI regime read:</b> risk-on or off, curve steepening or flattening,
+      dollar direction — one paragraph, every morning, folded into the existing briefings.</li>
     </ul>
-    <p class="meta">Confidential by design (private, access-controlled) · ~1–2 weeks of evenings · needs: the documents themselves</p>
+    <p class="meta">Builds directly on the live Terminal · ~1 week of evenings · £0/month</p>
   </div>
 
-  <h2>Option B — Cash-Flow &amp; Treasury Cockpit</h2>
+  <div class="arrow">▼</div>
+
+  <h2>Phase 2 — The Event Reaction Engine <span style="font-size:11px;color:#7a8696">the understanding layer</span></h2>
   <div class="opt">
-    <h3>The money picture, live <span class="for">sequel to invoice recon</span></h3>
-    <p>Builds directly on the invoice-reconciliation work: one screen for cash in and out over
-    time — expected receipts vs actual, aging receivables with automatic chase reminders,
-    payables coming due, currency exposure at a glance, and a simple "cash runway" view for
-    partner decisions.</p>
-    <p class="meta">Extends a system already in use · ~1 week of evenings · needs: bank/ledger exports (CSV is enough)</p>
+    <h3>In rates and indices, the calendar is the market</h3>
+    <p>CPI, jobs numbers, Fed decisions, bond auctions — these scheduled moments are where
+    indices and bonds actually move. This system makes the desk fluent in them:</p>
+    <ul>
+      <li><b class="k">Before each event:</b> a primer email — what's expected, what's priced,
+      and how markets reacted the last several times this number surprised.</li>
+      <li><b class="k">A reaction memory that compounds:</b> "the S&amp;P has averaged a ±1%
+      move on CPI days; 10-year yields ±8bp" — built automatically from every release the
+      system lives through.</li>
+      <li><b class="k">After each event:</b> the scorecard — consensus vs actual vs market
+      reaction, archived and searchable.</li>
+    </ul>
+    <p class="meta">This is how a new desk builds instinct in months instead of years · ~1–2 weeks of evenings · £0/month</p>
   </div>
 
-  <h2>Option C — Compliance &amp; KYC Tracker</h2>
-  <div class="opt">
-    <h3>Counterparty paperwork that chases itself <span class="for">quiet win</span></h3>
-    <p>Every counterparty's onboarding and KYC documents in one register — what's held, what's
-    missing, what expires when. Automatic expiry chasing, an instant "are we current with X?"
-    answer, and a clean audit trail. Unglamorous, but it removes a recurring scramble and looks
-    excellent in any review.</p>
-    <p class="meta">Deterministic and low-risk · ~3–4 evenings · needs: the current KYC folder/spreadsheet</p>
-  </div>
+  <div class="arrow">▼</div>
 
-  <h2>Option D — Relationship Manager + Meeting Minutes AI</h2>
+  <h2>Phase 3 — The Paper Desk <span style="font-size:11px;color:#7a8696">the proving layer · the flagship</span></h2>
   <div class="opt">
-    <h3>The firm's memory of who, what and when <span class="for">built for the partner seat</span></h3>
-    <p>A lightweight relationship tracker for counterparties, brokers and contacts — last
-    contact, open threads, history — plus an AI that turns meeting notes (or recordings) into
-    clean minutes with action items, and chases those actions weekly. Small firms run on
-    relationships; this makes sure nothing said in a meeting evaporates.</p>
-    <p class="meta">~1 week of evenings · needs: buy-in to drop notes/recordings into one place</p>
+    <h3>Prove the edge before funding it <span class="for">partner-grade evidence</span></h3>
+    <p>A simulated trading book for the new markets. Logging a hypothetical position takes 30
+    seconds — instrument, direction, size, thesis. The system does the rest:</p>
+    <ul>
+      <li><b class="k">Tracks every paper trade against real prices</b> — live P&amp;L, win rate,
+      drawdown, per asset class and per person.</li>
+      <li><b class="k">Snapshots the context at entry</b> (the Terminal's headlines, sentiment and
+      prices at that moment) — so every trade can be reviewed against what was knowable.</li>
+      <li><b class="k">Weekly AI review:</b> which theses worked, which markets suit the desk's
+      style, where the edge actually is.</li>
+      <li><b class="k">The output after a quarter:</b> an evidence file — "our paper record in
+      indices vs bonds vs FX" — on which the real-capital decision can be made with data rather
+      than instinct.</li>
+    </ul>
+    <p class="meta">No capital at risk, no regulatory exposure — pure decision-support · ~1–2 weeks of evenings · £0/month</p>
   </div>
 
   <div class="rec">
-    <h3>How to choose — and a suggestion</h3>
-    <p>The real selector is <b class="k">where the pain is sharpest and what data is easiest to
-    hand over</b> — these run on internal documents rather than public feeds, so access decides
-    speed. On value-for-effort: <b class="k">A (Contract Vault)</b> is the flagship — highest
-    partner-level impact and the strongest showcase of what AI can do for the firm.
-    <b class="k">B (Cash Cockpit)</b> is the safest bet — it extends a tool already proving
-    itself. A pragmatic path: <b class="k">B first, A second</b>, with C as a quick win slotted
-    in between.</p>
-    <p>Smaller add-ons to the News Terminal (a Monday partner's brief, a trade journal) are also
-    on the shelf — happy to walk through those separately.</p>
+    <h3>Suggested path</h3>
+    <p><b class="k">Build Phase 1 now</b> (fastest — the Terminal already does most of it), start
+    <b class="k">Phase 3 in parallel</b> so the paper track record starts accruing immediately —
+    its value compounds with every week it runs. Phase 2 follows and plugs into both.</p>
+    <p>Everything runs on the infrastructure already in place: no new subscriptions, no servers,
+    no running cost. The programme's output is a desk that arrives at its first real multi-asset
+    trade already fluent — with the evidence to size it.</p>
   </div>
 
-  <div class="ftr">Prepared for Neil &amp; Josh · Sheerstock Park &nbsp;·&nbsp; Created by Saavan Sumray-Roots</div>
+  <div class="ftr">Prepared for Neil &amp; Josh · Sheerstock Park · Market tools are decision-support,
+  not investment advice &nbsp;·&nbsp; Created by Saavan Sumray-Roots</div>
 </div>
 </body>
 </html>
