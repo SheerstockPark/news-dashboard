@@ -13,12 +13,18 @@ name: Email briefing → Neil
 # whoever delivers first today wins. GitHub runners can send SMTP (unlike some PaaS hosts),
 # which is why this is the reliable send path.
 on:
-  # Schedules stay off while a scheduled Claude routine owns briefing delivery (it dispatches
-  # this workflow with brief_text). If the routine is ever retired, re-enable these crons —
-  # the per-day dedupe makes it safe to oversample several lines per window.
+  # Schedules stay off while a scheduled Claude routine owns briefing delivery. The routine
+  # delivers one of two ways (both land here): dispatch with brief_text, or — if dispatch
+  # isn't permitted from its sandbox — commit the prose to briefs/pending-<edition>.md, which
+  # fires this push trigger. Per-day DB dedupe makes double-delivery impossible either way.
+  # If the routine is ever retired, re-enable the crons below — dedupe also makes it safe to
+  # oversample several lines per window.
   # schedule:
   #   - cron: "0 5 * * *"    # morning — 06:00 UK (BST)
   #   - cron: "0 19 * * *"   # evening — 20:00 UK (BST)
+  push:
+    branches: [main]
+    paths: ["briefs/pending-*.md"]
   workflow_dispatch:
     inputs:
       edition:
@@ -52,29 +58,36 @@ jobs:
           cache: pip
       - name: Install dependencies (brief + email)
         run: pip install -r requirements-brief.txt
-      - name: Pick edition (evening cron vs morning vs manual input)
-        id: ed
-        run: |
-          if [ "${{ github.event.schedule }}" = "0 19 * * *" ]; then
-            echo "edition=Evening" >> "$GITHUB_OUTPUT"
-          elif [ -n "${{ github.event.inputs.edition }}" ]; then
-            echo "edition=${{ github.event.inputs.edition }}" >> "$GITHUB_OUTPUT"
-          else
-            echo "edition=Morning" >> "$GITHUB_OUTPUT"
-          fi
-      - name: Stage provided brief text (if any)
-        id: pre
+      - name: Resolve edition + prose source (dispatch input / pushed pending file / cron)
+        id: src
         env:
           BRIEF_TEXT: ${{ github.event.inputs.brief_text }}
+          IN_EDITION: ${{ github.event.inputs.edition }}
         run: |
           mkdir -p .tmp
-          if [ -n "$BRIEF_TEXT" ]; then
-            printf '%s' "$BRIEF_TEXT" > .tmp/brief.md
-            echo "args=--text-file .tmp/brief.md" >> "$GITHUB_OUTPUT"
+          if [ "${{ github.event_name }}" = "push" ]; then
+            f=$(ls -t briefs/pending-*.md 2>/dev/null | head -1)
+            if [ -z "$f" ]; then
+              echo "Push trigger but no briefs/pending-*.md present — nothing to send."
+              echo "skip=true" >> "$GITHUB_OUTPUT"; exit 0
+            fi
+            case "$f" in *evening*) ed=Evening ;; *) ed=Morning ;; esac
+            echo "edition=$ed" >> "$GITHUB_OUTPUT"
+            echo "args=--text-file $f" >> "$GITHUB_OUTPUT"
           else
-            echo "args=" >> "$GITHUB_OUTPUT"
+            if [ "${{ github.event.schedule }}" = "0 19 * * *" ]; then ed=Evening
+            elif [ -n "$IN_EDITION" ]; then ed="$IN_EDITION"
+            else ed=Morning; fi
+            echo "edition=$ed" >> "$GITHUB_OUTPUT"
+            if [ -n "$BRIEF_TEXT" ]; then
+              printf '%s' "$BRIEF_TEXT" > .tmp/brief.md
+              echo "args=--text-file .tmp/brief.md" >> "$GITHUB_OUTPUT"
+            else
+              echo "args=" >> "$GITHUB_OUTPUT"
+            fi
           fi
       - name: Render + email the briefing
+        if: steps.src.outputs.skip != 'true'
         env:
           TURSO_DATABASE_URL: ${{ secrets.TURSO_DATABASE_URL }}
           TURSO_AUTH_TOKEN: ${{ secrets.TURSO_AUTH_TOKEN }}
@@ -88,6 +101,6 @@ jobs:
           SMTP_USER: ${{ secrets.SMTP_USER }}
           SMTP_PASS: ${{ secrets.SMTP_PASS }}
         run: >
-          python tools/send_briefing.py --edition "${{ steps.ed.outputs.edition }}" --fetch
-          ${{ steps.pre.outputs.args }}
+          python tools/send_briefing.py --edition "${{ steps.src.outputs.edition }}" --fetch
+          ${{ steps.src.outputs.args }}
           ${{ github.event.inputs.force == 'true' && '--force' || '' }}
