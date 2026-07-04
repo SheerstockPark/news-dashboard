@@ -30,7 +30,7 @@ on:
       edition:
         description: Edition label
         type: choice
-        options: [Morning, Evening]
+        options: [Morning, Evening, Weekly]
         default: Morning
       brief_text:
         description: Pre-written briefing Markdown (skips the Claude API call)
@@ -71,7 +71,7 @@ jobs:
               echo "Push trigger but no briefs/pending-*.md present — nothing to send."
               echo "skip=true" >> "$GITHUB_OUTPUT"; exit 0
             fi
-            case "$f" in *evening*) ed=Evening ;; *) ed=Morning ;; esac
+            case "$f" in *weekly*) ed=Weekly ;; *evening*) ed=Evening ;; *) ed=Morning ;; esac
             echo "edition=$ed" >> "$GITHUB_OUTPUT"
             echo "args=--text-file $f" >> "$GITHUB_OUTPUT"
           else

@@ -134,6 +134,10 @@ def send_briefing(edition: str = "Morning", fetch: bool = False, no_send: bool =
     if no_send:
         return {"sent": False, "edition": edition, "model": built["model"], "html": built["path"]}
 
+    if edition.strip().lower() == "weekly":
+        built["subject"] = "Sheerstock Park — Weekly Desk Review · week ending %s" \
+            % datetime.now(timezone.utc).strftime("%d %b %Y")
+
     to = mailer.briefing_recipients()  # DIGEST_TO + briefing-only extras (BRIEFING_EXTRA_TO)
     try:
         sent = mailer.send_html(built["subject"], built["html"], built["text"], to=to)

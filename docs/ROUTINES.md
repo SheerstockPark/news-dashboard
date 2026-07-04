@@ -10,12 +10,13 @@ Managed at https://claude.ai/code/routines. **Prerequisite:** the claude.ai acco
 GitHub connected (App installed on `SheerstockPark/news-dashboard`) — creation fails with a
 401 otherwise.
 
-## The two routines
+## The three routines
 
 | Name | Cron (UTC) | Lands (UK, BST) |
 |---|---|---|
-| Sheerstock Morning Briefing | `0 5 * * *` | 06:00 |
-| Sheerstock Evening Briefing | `0 19 * * *` | 20:00 |
+| Sheerstock Morning Briefing | `0 5 * * *` | 06:00 daily |
+| Sheerstock Evening Briefing | `0 19 * * *` | 20:00 daily |
+| Sheerstock Weekly Desk Review | `0 8 * * 6` | 09:00 Saturday |
 
 Config: environment `Default`, model `claude-sonnet-5`, source repo
 `https://github.com/SheerstockPark/news-dashboard`, tools Bash/Read/Write/Edit/Glob/Grep.
@@ -48,6 +49,26 @@ Config: environment `Default`, model `claude-sonnet-5`, source repo
    b. fallback: commit the prose to `briefs/pending-morning.md` and push to main — the
       `push` trigger on briefing.yml delivers it.
 6. **Report** — one line saying which path delivered, or a clear FAILED with errors.
+
+## The Weekly Desk Review (Saturday routine)
+
+Same mechanics as the dailies, different brief: analyse the **whole week**, not the day.
+Saturday 09:00 UK was chosen deliberately — all Friday settles (incl. late-US energy) are final,
+it never collides with a daily briefing, and it reads as the weekend sit-down piece.
+
+Prompt differences from the dailies:
+1. **Data window** — the full week: pull ~7 days of archive headlines; get daily closes for the
+   week (yfinance `history(period='14d')`) for Brent/WTI/NatGas/Gold/S&P/VIX/DXY and compute
+   week-on-week moves. Never invent a number.
+2. **Shape** (still plain briefing Markdown — bold `**section**` headers + dash bullets, tables
+   as bullet lines): **⚡ Desk Take** (the week's central tension) / **📊 The Week in Numbers**
+   (one bullet per market: Fri→Fri level + %) / **🗓 How the Week Unfolded** (one bullet per day)
+   / 2–4 **theme sections** with genuine desk reads (divergences, what's mispriced) /
+   **👀 The Week Ahead**.
+3. **Quality reference** — docs/week-in-review-2026-07-04.html (the hand-written first edition).
+4. **Deliver** — dispatch briefing.yml with `edition=Weekly` + the prose (or fallback: commit
+   `briefs/pending-weekly.md` and push). Subject becomes "Weekly Desk Review · week ending …";
+   per-day dedupe scope `briefing-weekly` means Saturday retries can't double-send.
 
 ## Interplay with the rest of the system
 
