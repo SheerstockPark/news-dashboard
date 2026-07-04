@@ -23,12 +23,15 @@ STATE_PATH = DATA_DIR / "alerts_state.json"  # Telegram-feed dedupe (run_once); 
 
 # Shock terms that make a headline "urgent" even if its oil-relevance score is moderate —
 # geopolitical / macro / market ruptures the principal would want pinged on intra-day.
+# Matched with WORD BOUNDARIES against the TITLE only — a substring match once fired on
+# "award" (contains "war"). Generic ongoing-coverage words ("war", "attack") are deliberately
+# absent: routine war reporting belongs in the briefing, not an urgent ping.
 URGENT_KEYWORDS = [
-    "invasion", "invades", "war", "missile", "airstrike", "air strike", "attack",
-    "strikes ", "nuclear", "ceasefire", "sanction", "embargo", "blockade", "hormuz",
-    "strait", "coup", "assassinat", "opec", "spr ", "emergency", "default", "collapse",
-    "crash", "plunge", "halts trading", "circuit breaker", "tariff", "shutdown",
-    "rate cut", "rate hike", "downgrade", "bankrupt",
+    "invasion", "invades", "declares war", "missile", "airstrike", "air strike",
+    "drone strike", "nuclear", "ceasefire", "sanctions", "sanction", "embargo", "blockade",
+    "hormuz", "strait", "coup", "assassinat", "opec", "spr", "state of emergency",
+    "default", "collapse", "crash", "plunge", "plunges", "halts trading", "circuit breaker",
+    "shutdown", "rate cut", "rate hike", "downgrade", "bankrupt", "force majeure",
 ]
 
 
@@ -152,14 +155,35 @@ def run_once(min_relevance=70, min_impact=60, keywords=None, limit=200, log=None
 # ---------------------------------------------------------------------------
 
 def _urgent_qualifies(a: Dict, min_relevance: int, min_impact: int, keywords: List[str]) -> bool:
-    if a.get("relevance", 0) >= min_relevance:
+    """Three ways in, all with an oil/desk-relevance floor; opinion & sport never qualify.
+
+    Tuned against live data 2026-07-04: the previous version (substring keywords over
+    title+summary, no relevance floor on the impact path) matched ~90 stories/day in a hot
+    week — "award" contains "war". Target is a handful of genuinely big pings per day.
+    """
+    import re
+
+    from . import tagging
+
+    title = a.get("title") or ""
+    if tagging._OFF_TOPIC.search(title):  # noqa: SLF001 — same-package heuristic
+        return False
+    t = title.lower()
+    kw_hit = bool(keywords) and any(
+        re.search(r"\b" + re.escape(k) + r"\b", t) for k in keywords)
+    rel = a.get("relevance", 0)
+    shock = abs(a.get("impact_score", 0))
+
+    # Topical alone isn't urgent — a high-relevance story must ALSO read as a shock
+    # (strong directional impact or a shock keyword in the title).
+    if rel >= min_relevance and (shock >= 50 or kw_hit):
         return True
-    if abs(a.get("impact_score", 0)) >= min_impact and a.get("impact") != "neutral":
+    # Very strong directional read on a solidly relevant story.
+    if shock >= min_impact and a.get("impact") != "neutral" and rel >= 40:
         return True
-    if keywords and a.get("relevance", 0) >= 35:  # keyword shocks, but with a relevance floor
-        hay = (a["title"] + " " + (a.get("summary") or "")).lower()
-        if any(k in hay for k in keywords):
-            return True
+    # Shock keyword in the title of a clearly relevant story.
+    if kw_hit and rel >= 55:
+        return True
     return False
 
 
@@ -221,6 +245,23 @@ def run_urgent(min_relevance: int = 78, min_impact: int = 72, keywords: List[str
         return {"sent": 0, "channel": "email", "candidates": 0}
 
     now = datetime.now(timezone.utc)
+    # Cooldown: at most one urgent email per URGENT_COOLDOWN_MIN minutes (default 60). During
+    # a hot news run, candidates accumulate unmarked and go out as ONE batch when the window
+    # reopens — the inbox gets periodic digests of the storm, not a drip-feed of pings.
+    cooldown_min = int(_env("URGENT_COOLDOWN_MIN") or "60")
+    last = db.last_sent("urgent")
+    if last and cooldown_min > 0:
+        try:
+            last_dt = datetime.fromisoformat(last)
+            if last_dt.tzinfo is None:
+                last_dt = last_dt.replace(tzinfo=timezone.utc)
+            age_min = (now - last_dt).total_seconds() / 60.0
+            if age_min < cooldown_min:
+                log("cooldown: holding %d candidate(s) — %.0fm since last urgent (window %dm)"
+                    % (len(fresh), age_min, cooldown_min))
+                return {"sent": 0, "channel": "email", "candidates": len(fresh), "note": "cooldown"}
+        except ValueError:
+            pass
     # Subject leads with the actual top headline so the inbox tells the story at a glance.
     lead = max(fresh, key=lambda a: (a.get("relevance", 0), abs(a.get("impact_score", 0))))
     lt = lead["title"]
