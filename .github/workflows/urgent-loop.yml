@@ -1,0 +1,52 @@
+name: Urgent alerts — near-instant loop
+
+# Free replacement for a paid always-on worker: this repo is public, so GitHub-hosted runners
+# are free — each hourly run polls the feeds every 60s for ~58 minutes, then exits cleanly and
+# the next scheduled run takes over. Result: ~1-minute urgent-alert latency at £0.
+#
+# Resilience layers (all deduped in Turso, so overlaps never double-send):
+#   * concurrency group queues the next run until the current one ends — seamless handover.
+#   * If GitHub delays an hourly start, alerts.yml's */15 sweep covers the gap.
+#   * One bad tick inside the loop logs and continues (see run_alerts.py).
+on:
+  schedule:
+    - cron: "7 * * * *"   # hourly relay, staggered off the ingest/alerts crons
+  workflow_dispatch: {}
+
+concurrency:
+  group: urgent-loop
+  cancel-in-progress: false
+
+jobs:
+  loop:
+    runs-on: ubuntu-latest
+    timeout-minutes: 70
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - name: Install dependencies
+        run: pip install -r requirements-brief.txt
+      - name: Poll urgent headlines (60s interval, ~58 min, then hand over)
+        env:
+          TURSO_DATABASE_URL: ${{ secrets.TURSO_DATABASE_URL }}
+          TURSO_AUTH_TOKEN: ${{ secrets.TURSO_AUTH_TOKEN }}
+          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+          DIGEST_TO: ${{ secrets.DIGEST_TO }}
+          DIGEST_FROM: ${{ secrets.DIGEST_FROM }}
+          SMTP_HOST: ${{ secrets.SMTP_HOST }}
+          SMTP_PORT: ${{ secrets.SMTP_PORT }}
+          SMTP_USER: ${{ secrets.SMTP_USER }}
+          SMTP_PASS: ${{ secrets.SMTP_PASS }}
+        run: |
+          set +e
+          timeout 3480 python tools/run_alerts.py --urgent --fetch --loop --interval 60
+          code=$?
+          # timeout(1) exits 124 when the window ends — that's the planned handover, not a failure
+          if [ "$code" -eq 124 ]; then
+            echo "Window complete — handing over to the next scheduled run."
+            exit 0
+          fi
+          exit $code

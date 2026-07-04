@@ -73,7 +73,10 @@ def main() -> int:
     print("Looping every %ds. Ctrl-C to stop." % args.interval)
     try:
         while True:
-            check()
+            try:
+                check()
+            except Exception as exc:  # noqa: BLE001 — one bad tick must not kill the loop
+                print("[tick failed, continuing] %s" % exc, flush=True)
             time.sleep(args.interval)
     except KeyboardInterrupt:
         print("\nStopped.")
