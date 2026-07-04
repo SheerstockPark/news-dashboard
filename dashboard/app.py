@@ -293,7 +293,12 @@ def load_global_production():
 def load_quick_take(_ids_key, payload, quotes):
     # _ids_key (top headline ids) drives cache invalidation: regenerates only when the top
     # stories change, or every 15 min — so the 30s auto-refresh never re-hits the API.
-    return briefmod.quick_take(payload, quotes)
+    # Fail-soft: an API error (exhausted credit, outage) must degrade to the no-AI fallback
+    # panel, not splatter a traceback across the Overview.
+    try:
+        return briefmod.quick_take(payload, quotes)
+    except Exception:  # noqa: BLE001
+        return ""
 
 
 @st.cache_data(ttl=120, show_spinner=False)
@@ -852,12 +857,16 @@ def terminal():
         with right:
             if briefmod.available():
                 if st.button("✨ Refresh brief", use_container_width=True):
-                    with st.spinner("Writing the cross-asset briefing…"):
-                        arts = db.query_articles(limit=400, min_relevance=0)
-                        briefmod.generate(arts, load_prices(), load_spreads(),
-                                          equities=load_market_movers(), eia=load_inventories())
-                    st.cache_data.clear()
-                    b = briefmod.load()
+                    try:
+                        with st.spinner("Writing the cross-asset briefing…"):
+                            arts = db.query_articles(limit=400, min_relevance=0)
+                            briefmod.generate(arts, load_prices(), load_spreads(),
+                                              equities=load_market_movers(), eia=load_inventories())
+                        st.cache_data.clear()
+                        b = briefmod.load()
+                    except Exception as exc:  # noqa: BLE001 — dead credit/API outage
+                        st.warning("AI briefing unavailable right now (likely out of API "
+                                   "credit): %s" % exc)
                 if b.get("text") and mailer.configured():
                     if st.button("📧 Email to Neil", use_container_width=True):
                         try:
@@ -915,15 +924,20 @@ def terminal():
             if not askmod.available():
                 st.caption("Add ANTHROPIC_API_KEY to .env to enable Q&A over the news.")
             else:
-                with st.spinner("Reading the wires…"):
-                    res = askmod.answer(q)
-                with st.container(border=True):
-                    st.markdown(res["text"])
-                    if res["sources"]:
-                        with st.expander("Sources (%d)" % len(res["sources"])):
-                            for i, a in enumerate(res["sources"][:15]):
-                                st.markdown("**[%d]** [%s](%s) — *%s*"
-                                            % (i + 1, a["title"], a.get("url", "#"), a["source_name"]))
+                res = None
+                try:
+                    with st.spinner("Reading the wires…"):
+                        res = askmod.answer(q)
+                except Exception as exc:  # noqa: BLE001 — dead credit/API outage
+                    st.warning("Q&A unavailable right now (likely out of API credit): %s" % exc)
+                if res:
+                    with st.container(border=True):
+                        st.markdown(res["text"])
+                        if res["sources"]:
+                            with st.expander("Sources (%d)" % len(res["sources"])):
+                                for i, a in enumerate(res["sources"][:15]):
+                                    st.markdown("**[%d]** [%s](%s) — *%s*"
+                                                % (i + 1, a["title"], a.get("url", "#"), a["source_name"]))
 
     # ============================================================ FEED
     with tab_feed:
