@@ -1,12 +1,13 @@
 name: AI sentiment enrichment → Turso
 
-# Hourly: score the newly-ingested oil-relevant headlines with Claude (Haiku) so the
+# Every 3h: score the newly-ingested oil-relevant headlines with Claude (Haiku) so the
 # dashboard's impact tags, tone bar, "biggest issues" ranking and the email all run on
-# AI sentiment instead of the keyword tagger. Only scores rows not yet scored, so each
-# run touches a few dozen articles — fractions of a cent. Needs ANTHROPIC_API_KEY.
+# AI sentiment instead of the keyword tagger. Only scores rows not yet scored, so nothing
+# is missed at the lower cadence — it just batches more per run, at a third of the API
+# calls (cost control after the June credit burn). Needs ANTHROPIC_API_KEY.
 on:
   schedule:
-    - cron: "20 * * * *"   # hourly, offset from the ingest/alert crons
+    - cron: "20 */3 * * *"   # every 3h, offset from the ingest/alert crons
   workflow_dispatch: {}
 
 concurrency:

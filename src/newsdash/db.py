@@ -224,6 +224,16 @@ def alerted_ids(scope: str) -> set:
     return {r[0] for r in rows}
 
 
+def last_sent(scope_like: str) -> Optional[str]:
+    """Most recent alert_state.sent_at (ISO UTC) for scopes matching a SQL LIKE pattern,
+    e.g. 'briefing-%' for either briefing edition. None if nothing has ever been sent."""
+    with _connect() as conn:
+        row = conn.execute(
+            "SELECT MAX(sent_at) FROM alert_state WHERE scope LIKE ?", (scope_like,)
+        ).fetchone()
+    return row[0] if row and row[0] else None
+
+
 def mark_alerted(ids: Iterable[str], scope: str) -> int:
     """Record that these articles were alerted for this scope. Idempotent. Returns # marked."""
     from datetime import datetime, timezone

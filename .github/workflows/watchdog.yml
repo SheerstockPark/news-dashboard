@@ -1,0 +1,33 @@
+name: Watchdog — briefing delivery heartbeat
+
+# Deadman switch. Fails (and GitHub then emails the repo owner) if no briefing has been
+# CONFIRMED DELIVERED in the last ~26h — catching silent failures like a stopped Railway
+# worker, an exhausted API credit, or a blocked/broken email backend. Runs after each
+# briefing window; GitHub cron is best-effort, which is fine for a watchdog.
+on:
+  schedule:
+    - cron: "30 8 * * *"    # ~09:30 UK — after the morning window
+    - cron: "30 21 * * *"   # ~22:30 UK — after the evening window
+  workflow_dispatch: {}
+
+concurrency:
+  group: watchdog
+  cancel-in-progress: false
+
+jobs:
+  heartbeat:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - name: Install DB driver
+        run: pip install libsql python-dotenv
+      - name: Check briefing heartbeat
+        env:
+          TURSO_DATABASE_URL: ${{ secrets.TURSO_DATABASE_URL }}
+          TURSO_AUTH_TOKEN: ${{ secrets.TURSO_AUTH_TOKEN }}
+        run: python tools/check_heartbeat.py --max-hours 26
