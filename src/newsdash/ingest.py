@@ -66,7 +66,12 @@ def normalize_entries(parsed, source: Dict[str, Any], fetched_at: str) -> List[D
             continue
         summary = _clean(entry.get("summary", "") or entry.get("description", ""))
         relevance, tags = tagging.score(title, summary, source["weight"])
-        impact_label, impact_score = tagging.impact(title, summary)
+        # Only oil-relevant stories carry a crude-direction badge — the conflict lexicon
+        # ("attack", "war", "strikes") otherwise mislabels politics/sport as bullish crude.
+        if relevance >= 25:
+            impact_label, impact_score = tagging.impact(title, summary)
+        else:
+            impact_label, impact_score = "neutral", 0
         rows.append(
             {
                 "id": _article_id(entry),

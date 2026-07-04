@@ -95,6 +95,7 @@ jobs:
           EIA_API_KEY: ${{ secrets.EIA_API_KEY }}
           RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
           DIGEST_TO: ${{ secrets.DIGEST_TO }}
+          BRIEFING_EXTRA_TO: ${{ secrets.BRIEFING_EXTRA_TO }}
           DIGEST_FROM: ${{ secrets.DIGEST_FROM }}
           SMTP_HOST: ${{ secrets.SMTP_HOST }}
           SMTP_PORT: ${{ secrets.SMTP_PORT }}

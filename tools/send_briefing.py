@@ -134,14 +134,15 @@ def send_briefing(edition: str = "Morning", fetch: bool = False, no_send: bool =
     if no_send:
         return {"sent": False, "edition": edition, "model": built["model"], "html": built["path"]}
 
+    to = mailer.briefing_recipients()  # DIGEST_TO + briefing-only extras (BRIEFING_EXTRA_TO)
     try:
-        sent = mailer.send_html(built["subject"], built["html"], built["text"])
+        sent = mailer.send_html(built["subject"], built["html"], built["text"], to=to)
     except Exception as exc:  # noqa: BLE001 — fail-soft so the cron / worker loop stays alive
         log("Email send failed: %s" % exc)
         return {"sent": False, "edition": edition, "model": built["model"], "error": str(exc)}
     if sent:
         db.mark_alerted([today], scope)  # confirmed-delivery mark: dedupe + watchdog heartbeat
-        log("Emailed via %s to %s" % (mailer.backend(), ", ".join(mailer.recipients())))
+        log("Emailed via %s to %s" % (mailer.backend(), ", ".join(to)))
     else:
         log("Email not sent (backend unconfigured).")
     return {"sent": bool(sent), "edition": edition, "model": built["model"], "html": built["path"]}

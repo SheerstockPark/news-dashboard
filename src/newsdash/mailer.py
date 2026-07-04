@@ -36,6 +36,16 @@ def recipients() -> List[str]:
     return [x.strip() for x in _env("DIGEST_TO").split(",") if x.strip()]
 
 
+def briefing_recipients() -> List[str]:
+    """Recipients for the twice-daily briefings: DIGEST_TO plus BRIEFING_EXTRA_TO.
+
+    BRIEFING_EXTRA_TO holds people who want the morning/evening briefings but NOT the
+    intra-day urgent alerts (urgent always goes to DIGEST_TO only)."""
+    extra = [x.strip() for x in _env("BRIEFING_EXTRA_TO").split(",") if x.strip()]
+    base = recipients()
+    return base + [x for x in extra if x not in base]
+
+
 def backend() -> str:
     if _env("RESEND_API_KEY"):
         return "resend"
@@ -89,10 +99,13 @@ def _send_smtp(subject: str, html: str, text: Optional[str], to: List[str]) -> b
     return True
 
 
-def send_html(subject: str, html: str, text: Optional[str] = None) -> bool:
-    """Send an HTML email via the configured backend. Returns False (no raise) if unconfigured."""
+def send_html(subject: str, html: str, text: Optional[str] = None,
+              to: Optional[List[str]] = None) -> bool:
+    """Send an HTML email via the configured backend. Returns False (no raise) if unconfigured.
+
+    to: override recipient list (e.g. briefing_recipients()); defaults to DIGEST_TO."""
     b = backend()
-    to = recipients()
+    to = to if to is not None else recipients()
     if b == "none" or not to:
         return False
     if b == "resend":

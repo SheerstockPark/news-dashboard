@@ -144,7 +144,8 @@ def tick() -> None:
                     _PENDING[e["scope"]] = built
             if built:
                 try:
-                    ok = mailer.send_html(built["subject"], built["html"], built["text"])
+                    ok = mailer.send_html(built["subject"], built["html"], built["text"],
+                                          to=mailer.briefing_recipients())
                 except Exception as exc:  # noqa: BLE001
                     _log("%s briefing send FAILED (%s) — will retry send next tick." % (e["edition"], exc))
                     ok = False

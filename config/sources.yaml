@@ -357,3 +357,32 @@ sources:
     category: energy
     weight: 1
     enabled: true
+
+  # --- Voice sweeps: what key figures said on X / Truth Social / podiums. Free X access is
+  # dead (nitter down, API is paid), but wires re-report market-moving posts within minutes —
+  # these queries catch that echo fast. Trump's actual Truth Social posts still come raw via
+  # the truth-social-trump source above.
+  - id: gnews-trump-voice
+    name: Google News · Trump says
+    url: https://news.google.com/rss/search?q=Trump%20%28oil%20OR%20tariff%20OR%20sanctions%20OR%20Iran%20OR%20OPEC%20OR%20Fed%20OR%20%22truth%20social%22%20OR%20posted%29%20when:1d&hl=en-US&gl=US&ceid=US:en
+    category: geopolitics
+    weight: 2
+    enabled: true
+  - id: gnews-fed-voice
+    name: Google News · Fed speak
+    url: https://news.google.com/rss/search?q=%22Federal%20Reserve%22%20OR%20Powell%20%28rates%20OR%20cut%20OR%20hike%20OR%20inflation%29%20when:1d&hl=en-US&gl=US&ceid=US:en
+    category: macro
+    weight: 2
+    enabled: true
+  - id: gnews-musk-voice
+    name: Google News · Musk / X posts
+    url: https://news.google.com/rss/search?q=%28Musk%20OR%20%22Elon%22%29%20%28posted%20OR%20tweeted%20OR%20%22said%20on%20X%22%20OR%20Tesla%20OR%20SpaceX%29%20when:1d&hl=en-US&gl=US&ceid=US:en
+    category: markets
+    weight: 1
+    enabled: true
+  - id: gnews-iran-talks
+    name: Google News · Iran talks
+    url: https://news.google.com/rss/search?q=Iran%20%28talks%20OR%20nuclear%20OR%20sanctions%20OR%20Hormuz%20OR%20IRGC%29%20when:1d&hl=en-US&gl=US&ceid=US:en
+    category: geopolitics
+    weight: 2
+    enabled: true

@@ -25,6 +25,11 @@ TOPIC_KEYWORDS: Dict[str, List[str]] = {
         "saudi", "israel", "gaza", "houthi", "red sea", "war", "ceasefire", "attack", "drone strike",
     ],
     "macro": ["federal reserve", "interest rate", "rate cut", "rate hike", "inflation", "cpi", "recession", "gdp", "dollar"],
+    "equities": [
+        "nasdaq", "s&p 500", "s&p", "dow jones", "stock market", "wall street",
+        "sell-off", "selloff", "market rout", "risk-off", "vix", "circuit breaker",
+        "treasury yields", "bond market", "megacap", "bitcoin",
+    ],
     "energy-co": ["exxon", "chevron", "bp", "shell", "totalenergies", "conocophillips", "halliburton", "schlumberger"],
     "demand": ["demand forecast", "iea", "eia", "fuel demand", "consumption", "driving season"],
 }
@@ -38,6 +43,15 @@ _COMPILED: Dict[str, List[Tuple[str, "re.Pattern"]]] = {
     for topic, kws in TOPIC_KEYWORDS.items()
 }
 
+# Big cross-asset move: a move-verb next to a % figure ("Tesla plunges 12%", "Nasdaq sinks 4%").
+# Everything is linked — a megacap or index gapping like this is desk-relevant whatever the
+# asset, so it earns a large relevance boost (and can then qualify for urgent alerts).
+_BIG_MOVE = re.compile(
+    r"\b(plunge|plunges|plunged|crash|crashes|crashed|tumble|tumbles|tumbled|sink|sinks|sank|"
+    r"soar|soars|soared|surge|surges|surged|jump|jumps|jumped|slump|slumps|slumped|rocket|"
+    r"rockets|dive|dives|dived|drop|drops|dropped|rall(?:y|ies|ied)|fall|falls|fell|"
+    r"down|up)\b[^.]{0,40}?\b\d{1,2}(?:\.\d+)?%", re.IGNORECASE)
+
 
 # --- Crude-price impact lexicon -------------------------------------------------
 # Phrases that typically push crude UP (supply at risk / demand strong) vs DOWN
@@ -47,12 +61,17 @@ _BULLISH = {
     "production cut": 3, "opec+ cut": 3, "opec cut": 3, "cuts output": 3, "cuts production": 3,
     "refinery outage": 3, "refinery fire": 3, "pipeline attack": 3, "pipeline halt": 2,
     "attack": 2, "strike on": 2, "drone strike": 3, "missile": 2, "explosion": 2,
+    "drones hit": 3, "drone hits": 3, "drones strike": 3, "drones struck": 3,
+    "hits oil": 3, "hit oil": 3, "struck an oil": 3, "hits refinery": 3,
     "sanction": 2, "sanctions": 2, "embargo": 3, "export ban": 3, "price cap": 2,
     "escalation": 2, "escalate": 2, "invasion": 3, "war": 1, "conflict": 1,
     "close the strait": 4, "close strait": 4, "strait of hormuz": 2, "blockade": 3,
     "hurricane": 2, "shut-in": 3, "shut in": 2, "force majeure": 3,
     "inventory draw": 3, "stockpiles fall": 2, "crude draw": 3, "supply deficit": 3,
     "strong demand": 2, "demand surge": 2, "tighten": 2, "tightening": 2, "undersupply": 3,
+    # reserve BUILDING is demand under the market (opposite of an SPR release)
+    "expand strategic": 2, "expands strategic": 2, "expanding strategic": 2,
+    "refill": 2, "refilling": 2, "replenish": 2,
 }
 _BEARISH = {
     "ceasefire": 3, "cease-fire": 3, "truce": 2, "peace deal": 3, "de-escalation": 3,
@@ -67,10 +86,21 @@ _BEARISH = {
     "inventory build": 3, "crude build": 3, "stockpiles rise": 2, "stockpiles build": 2,
     "demand weakness": 3, "weak demand": 3, "demand destruction": 3, "recession": 2,
     "slowdown": 2, "glut": 3, "surplus": 2, "price falls": 1, "prices fall": 1, "plunge": 2,
+    "talks made progress": 2, "progress in talks": 2, "breakthrough": 2, "normalization": 2,
+    "spr release": 3, "reserve release": 3, "releases strategic": 3, "release strategic": 3,
 }
 
 _BULL_PAT = [(re.compile(r"\b" + re.escape(k) + r"\b", re.IGNORECASE), w) for k, w in _BULLISH.items()]
 _BEAR_PAT = [(re.compile(r"\b" + re.escape(k) + r"\b", re.IGNORECASE), w) for k, w in _BEARISH.items()]
+
+# Sports/culture headlines reuse the whole conflict lexicon ("attack", "strikes", "war") with
+# zero crude signal — force those neutral rather than badge a World Cup tie as bullish oil.
+# Opinion/editorial pieces argue rather than report ("waging war on the West — opinion"), so
+# they get no direction badge either.
+_OFF_TOPIC = re.compile(
+    r"\b(world cup|quarterfinal|semifinal|semi-final|quarter-final|tournament|premier league|"
+    r"champions league|fifa|uefa|olympic|grand slam|wimbledon|box office|film|movie|album|"
+    r"recipe|horoscope|obituary|opinion|op-ed|editorial|explainer)\b", re.IGNORECASE)
 
 
 def impact(title: str, summary: str = "") -> Tuple[str, int]:
@@ -82,6 +112,8 @@ def impact(title: str, summary: str = "") -> Tuple[str, int]:
     title = title or ""
     body = (title + " " + summary).lower()
     t = title.lower()
+    if _OFF_TOPIC.search(body):
+        return "neutral", 0
 
     def tally(patterns):
         total = 0
@@ -125,6 +157,17 @@ def score(title: str, summary: str = "", source_weight: int = 1) -> Tuple[int, L
                 raw += 4 if in_title else 2
         if topic_hit:
             tags.append(topic)
+
+    # Big % move in the headline → strong boost (title) or modest one (body). Applies on top
+    # of topic hits so "Nasdaq sinks 4%" or "Tesla plunges 12%" ranks even though it isn't oil.
+    if _BIG_MOVE.search(hay_title):
+        raw += 6
+        if "big-move" not in tags:
+            tags.append("big-move")
+    elif _BIG_MOVE.search(hay_all):
+        raw += 2
+        if "big-move" not in tags:
+            tags.append("big-move")
 
     if not tags:
         return 0, []
