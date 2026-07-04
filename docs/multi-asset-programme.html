@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sheerstock Park — The Multi-Asset Programme</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { background: #0b0f14; }
+  body { font-family: -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+         color: #e6edf3; line-height: 1.55; }
+  .sheet { padding: 30px 52px 20px;
+           background:
+             radial-gradient(1100px 500px at 85% -10%, rgba(255,122,24,.07), transparent 60%),
+             radial-gradient(900px 500px at -10% 110%, rgba(255,122,24,.05), transparent 55%),
+             #0b0f14;
+           page-break-after: always; }
+  .sheet:last-child { page-break-after: auto; }
+
+  .topbar { display: flex; justify-content: space-between; align-items: baseline;
+            border-bottom: 2px solid #ff7a18; padding-bottom: 10px; margin-bottom: 20px; }
+  .wordmark { font-size: 19px; font-weight: 800; letter-spacing: 2.5px; color: #fff; }
+  .wordmark span { color: #ff7a18; }
+  .toptag { color: #7d8b9a; font-size: 11px; text-transform: uppercase; letter-spacing: 1.5px; }
+
+  .chip { display: inline-block; border: 1px solid #2a3644; color: #9fb2c4; border-radius: 20px;
+          padding: 3px 14px; font-size: 11px; letter-spacing: 1.2px; text-transform: uppercase; }
+  h1 { font-size: 34px; font-weight: 800; letter-spacing: -.5px; color: #fff;
+       margin: 10px 0 4px; line-height: 1.1; }
+  h1 em { font-style: normal; color: #ffa45c; }
+  .strap { font-size: 15px; color: #b9c6d3; max-width: 640px; margin-bottom: 10px; }
+
+  h2 { font-size: 12px; text-transform: uppercase; letter-spacing: 2px; color: #ffa45c;
+       margin: 18px 0 9px; display: flex; align-items: center; gap: 12px; }
+  h2::after { content: ""; flex: 1; height: 1px; background: #1e2733; }
+
+  p, li { font-size: 12.5px; color: #c2cdd8; }
+  b.k { color: #fff; font-weight: 700; }
+
+  .card { background: #121823; border: 1px solid #1e2733; border-radius: 14px;
+          padding: 16px 20px; margin: 10px 0; }
+  .card h3 { font-size: 16px; color: #fff; margin-bottom: 3px; }
+  .card .sub { color: #7d8b9a; font-size: 12px; margin-bottom: 8px; }
+  .card ul { list-style: none; margin-top: 7px; }
+  .card li { padding-left: 17px; position: relative; margin: 4px 0; }
+  .card li::before { content: "▸"; position: absolute; left: 0; color: #ff7a18; font-weight: 800; }
+
+  .phasenum { font-size: 38px; font-weight: 800; color: rgba(255,122,24,.9); line-height: 1;
+              float: right; margin-left: 18px; }
+
+  table { width: 100%; border-collapse: collapse; margin: 8px 0; }
+  th { text-align: left; color: #7d8b9a; font-size: 10px; text-transform: uppercase;
+       letter-spacing: 1px; padding: 6px 9px; border-bottom: 1px solid #2a3644; }
+  td { padding: 8px 9px; border-bottom: 1px solid #1a222d; font-size: 12.5px; color: #c2cdd8;
+       vertical-align: top; }
+  td.ph { color: #ffa45c; font-weight: 800; white-space: nowrap; }
+  tr:last-child td { border-bottom: none; }
+
+  .journey { display: flex; align-items: stretch; gap: 7px; margin: 10px 0 4px; }
+  .jstep { flex: 1; background: #121823; border: 1px solid #1e2733; border-radius: 10px;
+           padding: 9px 9px 8px; text-align: center; }
+  .jstep.done { border-color: #1f4d38; background: #0f1d18; }
+  .jstep .s { font-size: 10px; letter-spacing: 1px; text-transform: uppercase; color: #7d8b9a; }
+  .jstep.done .s { color: #16c784; }
+  .jstep .n { font-size: 12.5px; font-weight: 700; color: #fff; margin-top: 3px; line-height: 1.25; }
+  .jarrow { align-self: center; color: #ff7a18; font-weight: 800; font-size: 15px; }
+
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .mini { background: #121823; border: 1px solid #1e2733; border-radius: 12px; padding: 11px 14px; }
+  .mini .t { font-size: 10.5px; text-transform: uppercase; letter-spacing: 1.2px; color: #ffa45c;
+             margin-bottom: 4px; font-weight: 700; }
+  .mini p { font-size: 12px; }
+
+  .quote { border-left: 3px solid #ff7a18; padding: 9px 16px; margin: 12px 0;
+           font-size: 13.5px; color: #e6edf3; font-style: italic; background: rgba(255,122,24,.05);
+           border-radius: 0 10px 10px 0; }
+
+  .foot { display: flex; justify-content: space-between; color: #5b6b7a; font-size: 10px;
+          border-top: 1px solid #1a222d; padding-top: 8px; margin-top: 16px; }
+</style>
+</head>
+<body>
+
+<!-- ==================== PAGE 1 : VISION ==================== -->
+<div class="sheet">
+  <div class="topbar">
+    <div class="wordmark">SHEERSTOCK <span>PARK</span></div>
+    <div class="toptag">Internal Proposal · July 2026</div>
+  </div>
+
+  <span class="chip">Prepared for Neil &amp; Josh</span>
+  <h1>The Multi-Asset<br><em>Programme</em></h1>
+  <p class="strap">The infrastructure for Sheerstock Park's expansion beyond oil — into indices,
+  bonds and FX. Three phases: <b class="k">watch</b> the new markets, <b class="k">understand</b>
+  what moves them, and <b class="k">prove</b> the edge on paper before committing capital.</p>
+
+  <h2>Why now</h2>
+  <p>Two internal systems are already live and paying their way: the <b class="k">invoice-reconciliation
+  dashboard</b> and the <b class="k">News Terminal</b> — a self-running market-intelligence platform
+  (live dashboard, 06:00 &amp; 20:00 AI briefings, a Saturday desk review, and urgent alerts within
+  about a minute of major news). The Terminal was never just an oil tool: it was deliberately built
+  as the first layer of a multi-asset operation — its scoring engine already ranks index and
+  mega-cap moves alongside crude. This programme completes the picture.</p>
+
+  <h2>The journey</h2>
+  <div class="journey">
+    <div class="jstep done"><div class="s">✓ Live</div><div class="n">Invoice Reconciliation</div></div>
+    <div class="jarrow">→</div>
+    <div class="jstep done"><div class="s">✓ Live</div><div class="n">News Terminal</div></div>
+    <div class="jarrow">→</div>
+    <div class="jstep"><div class="s">Phase 1</div><div class="n">Multi-Asset Cockpit</div></div>
+    <div class="jarrow">→</div>
+    <div class="jstep"><div class="s">Phase 2</div><div class="n">Event Reaction Engine</div></div>
+    <div class="jarrow">→</div>
+    <div class="jstep"><div class="s">Phase 3</div><div class="n">The Paper Desk</div></div>
+    <div class="jarrow">→</div>
+    <div class="jstep"><div class="s">Goal</div><div class="n">Live multi-asset trading</div></div>
+  </div>
+
+  <h2>The programme at a glance</h2>
+  <table>
+    <tr><th>Phase</th><th>Layer</th><th>What the desk gets</th><th>Build time</th></tr>
+    <tr><td class="ph">1 · Cockpit</td><td>Watch</td>
+        <td>Live rates, curve, index futures, FX and vol on the Terminal — plus a daily AI
+        <b class="k">regime read</b> in every briefing.</td><td>~1 week</td></tr>
+    <tr><td class="ph">2 · Events</td><td>Understand</td>
+        <td>Primers before every CPI / jobs / Fed / auction moment, scorecards after — and a
+        compounding memory of how markets actually react.</td><td>~2 weeks</td></tr>
+    <tr><td class="ph">3 · Paper Desk</td><td>Prove</td>
+        <td>A simulated multi-asset book with real-price P&amp;L and weekly AI reviews —
+        producing the <b class="k">evidence file</b> for the capital decision.</td><td>~2 weeks</td></tr>
+  </table>
+
+  <h2>Three principles</h2>
+  <div class="grid2">
+    <div class="mini"><div class="t">Decision-support only</div>
+      <p>Nothing here executes trades or gives buy/sell advice. The systems inform the humans;
+      the humans trade. Zero regulatory exposure by design.</p></div>
+    <div class="mini"><div class="t">Zero running cost</div>
+      <p>Everything runs on the same free infrastructure as the Terminal — no subscriptions,
+      no servers, no per-month fees. The only investment is build time.</p></div>
+    <div class="mini"><div class="t">Each phase stands alone</div>
+      <p>Every phase is independently useful from the day it ships. Stopping after any phase
+      still leaves the firm better equipped than today.</p></div>
+    <div class="mini"><div class="t">Evidence before capital</div>
+      <p>The programme's end product is not a system — it's a defensible answer to
+      "<i>where is our edge, and how big should we trade it?</i>"</p></div>
+  </div>
+
+  <div class="foot"><span>Sheerstock Park · The Multi-Asset Programme</span><span>Page 1 of 3</span></div>
+</div>
+
+<!-- ==================== PAGE 2 : PHASES 1 & 2 ==================== -->
+<div class="sheet">
+  <div class="topbar">
+    <div class="wordmark">SHEERSTOCK <span>PARK</span></div>
+    <div class="toptag">The Multi-Asset Programme</div>
+  </div>
+
+  <div class="card">
+    <div class="phasenum">01</div>
+    <h3>The Multi-Asset Cockpit</h3>
+    <div class="sub">The watching layer — the Terminal's proven machinery, pointed at every market</div>
+    <p>The Terminal already ingests 55+ sources every minute, scores every headline, and alerts on
+    the big ones. Phase 1 extends that machinery to the expansion targets:</p>
+    <ul>
+      <li><b class="k">Rates &amp; bonds</b> — the US yield curve live (2y / 10y / 30y), bond
+      futures, curve shape and how it's changing. The market that drives all the others.</li>
+      <li><b class="k">Indices &amp; volatility</b> — S&amp;P, Nasdaq, Dow, FTSE, DAX futures and
+      the VIX, with the big-move detection that already flags mega-cap gaps.</li>
+      <li><b class="k">FX &amp; gold</b> — the dollar regime, majors, and the haven complex.</li>
+      <li><b class="k">Dedicated news coverage</b> — rates, central-bank and index-market feeds
+      added to the archive, scored with the same engine.</li>
+      <li><b class="k">The daily regime read</b> — one AI paragraph in every morning briefing:
+      risk-on or risk-off, curve steepening or flattening, dollar direction, and what changed
+      overnight. The desk starts every day oriented across all markets, not just oil.</li>
+    </ul>
+    <p class="sub" style="margin-top:10px">Build: ~1 week of evenings · extends the live Terminal ·
+    data: existing free market feeds · running cost £0</p>
+  </div>
+
+  <div class="card">
+    <div class="phasenum">02</div>
+    <h3>The Event Reaction Engine</h3>
+    <div class="sub">The understanding layer — because in rates and indices, the calendar is the market</div>
+    <p>Oil moves on surprises; indices and bonds move on <b class="k">scheduled moments</b> — CPI,
+    jobs numbers, Fed decisions, bond auctions. Fluency in these events is precisely what separates
+    an experienced macro desk from a newcomer. This system compresses that learning curve:</p>
+    <ul>
+      <li><b class="k">The night before:</b> a primer email — what's being released, what
+      consensus expects, what's priced in, and how markets reacted the last six times this
+      number surprised in either direction.</li>
+      <li><b class="k">A reaction memory that compounds:</b> automatically recorded for every
+      release — "the S&amp;P averages a ±1% move on CPI days; 10-year yields ±8bp; the reaction
+      usually fades / extends by the close." The longer it runs, the smarter it gets.</li>
+      <li><b class="k">Afterwards:</b> the scorecard — consensus vs actual vs how each market
+      actually moved, archived and searchable forever.</li>
+      <li><b class="k">Integrated with the Terminal</b> — event days are flagged in the briefings
+      and on the dashboard's calendar bar.</li>
+    </ul>
+    <p class="sub" style="margin-top:10px">Build: ~2 weeks of evenings · data: official US calendars +
+    free price history · running cost £0</p>
+  </div>
+
+  <div class="quote">By the time real capital trades its first CPI print, the desk has already
+  lived through dozens of them on paper — with the receipts.</div>
+
+  <div class="foot"><span>Sheerstock Park · The Multi-Asset Programme</span><span>Page 2 of 3</span></div>
+</div>
+
+<!-- ==================== PAGE 3 : PHASE 3 + PLAN ==================== -->
+<div class="sheet">
+  <div class="topbar">
+    <div class="wordmark">SHEERSTOCK <span>PARK</span></div>
+    <div class="toptag">The Multi-Asset Programme</div>
+  </div>
+
+  <div class="card">
+    <div class="phasenum">03</div>
+    <h3>The Paper Desk</h3>
+    <div class="sub">The proving layer — the programme's flagship</div>
+    <p>A simulated trading book for the new markets. It answers the only question that matters
+    before expansion: <b class="k">do we actually have an edge here — and in which market?</b></p>
+    <ul>
+      <li><b class="k">30-second logging:</b> instrument, direction, size, one-line thesis.
+      Anyone on the desk can run a paper book — Neil, Josh, or both, tracked separately.</li>
+      <li><b class="k">Real-price tracking:</b> live P&amp;L, win rate, average win vs average
+      loss, drawdown — per person, per asset class, per thesis type.</li>
+      <li><b class="k">Context captured at entry:</b> the Terminal snapshots the headlines,
+      sentiment and prices at the moment of every trade — so each one can later be reviewed
+      against what was actually knowable, not hindsight.</li>
+      <li><b class="k">The weekly review:</b> an AI-written note every Saturday alongside the
+      Desk Review — which theses worked, which markets suit the desk's style, what the book
+      says about where the edge lives.</li>
+      <li><b class="k">The quarterly evidence file:</b> after ~13 weeks, a full report — the
+      paper track record across indices, bonds and FX — on which the real-capital decision can
+      be made with data rather than instinct. If the answer is "no edge yet," that's a cheap
+      lesson; if it's "clear edge in X," it comes with the numbers to size it.</li>
+    </ul>
+    <p class="sub" style="margin-top:10px">Build: ~2 weeks of evenings · no capital at risk, no execution,
+    no regulatory exposure · running cost £0</p>
+  </div>
+
+  <h2>Delivery plan</h2>
+  <table>
+    <tr><th>When</th><th>What happens</th></tr>
+    <tr><td class="ph">Weeks 1–2</td><td><b class="k">Phase 1 ships.</b> The Cockpit goes live on the
+        Terminal; briefings gain the daily regime read.</td></tr>
+    <tr><td class="ph">Weeks 2–4</td><td><b class="k">Phase 3 ships early and starts accruing.</b>
+        The Paper Desk opens — every week it runs makes the eventual evidence stronger, so it
+        starts as soon as possible, not last.</td></tr>
+    <tr><td class="ph">Weeks 4–6</td><td><b class="k">Phase 2 ships.</b> The Event Engine begins
+        recording reactions; primers start arriving before each release.</td></tr>
+    <tr><td class="ph">~Week 16</td><td><b class="k">The quarterly review.</b> Paper track record +
+        event fluency on the table — the informed conversation about real capital.</td></tr>
+  </table>
+
+  <h2>What this asks of you</h2>
+  <p>Three things: a <b class="k">green light on the direction</b>, an agreed shortlist of the
+  <b class="k">markets to cover first</b> (suggested start: US rates, S&amp;P/Nasdaq, dollar
+  majors, gold), and — once the Paper Desk is live — the discipline of <b class="k">logging the
+  hypothetical trades you're already discussing anyway</b>. The build time is mine; the running
+  cost is zero.</p>
+
+  <div class="quote">The firms that expand well don't start by trading a new market —
+  they start by out-preparing everyone else in it. That preparation is buildable, and it starts
+  this week if you want it.</div>
+
+  <div class="foot"><span>Prepared by Saavan Sumray-Roots · Market tools are decision-support, not
+  investment advice</span><span>Page 3 of 3</span></div>
+</div>
+
+</body>
+</html>
