@@ -54,9 +54,16 @@ def build_briefing(edition: str = "Morning", fetch: bool = False,
         s = ingest.run_once()
         log("Fetched: %d new, %d/%d sources ok" % (s["new"], s["ok"], s["sources"]))
 
-    db.init_db()
     now = datetime.now(timezone.utc)
-    articles = db.query_articles(limit=400, min_relevance=min_relevance)
+    # The article list only feeds the "top stories" links block — a briefing with prose but
+    # no links beats no briefing, so a dead/blocked DB (e.g. Turso read quota exhausted,
+    # 2026-07-11) must never stop the send.
+    try:
+        db.init_db()
+        articles = db.query_articles(limit=400, min_relevance=min_relevance)
+    except Exception as exc:  # noqa: BLE001
+        log("DB unavailable (%s) — building briefing without the top-stories block." % exc)
+        articles = []
     quotes, spreads = prices.get_quotes(), prices.get_spreads()
 
     if brief_text is not None:
@@ -116,11 +123,16 @@ def send_briefing(edition: str = "Morning", fetch: bool = False, no_send: bool =
     scope = "briefing-" + edition.strip().lower()
     today = _uk_today()
     if not no_send and not force:
-        db.init_db()
-        if today in db.alerted_ids(scope):
-            log("%s briefing already delivered today (%s) — skipping (use --force to re-send)."
-                % (edition, today))
-            return {"sent": False, "edition": edition, "note": "already sent today"}
+        # Dedupe is best-effort: if the DB is down, send anyway (one sender per edition in
+        # practice — a rare double email beats a silent miss).
+        try:
+            db.init_db()
+            if today in db.alerted_ids(scope):
+                log("%s briefing already delivered today (%s) — skipping (use --force to re-send)."
+                    % (edition, today))
+                return {"sent": False, "edition": edition, "note": "already sent today"}
+        except Exception as exc:  # noqa: BLE001
+            log("DB unavailable for dedupe check (%s) — sending anyway." % exc)
 
     if not no_send and not mailer.configured():
         log("No email backend configured (set RESEND_API_KEY or SMTP_* + DIGEST_TO). "
@@ -145,7 +157,10 @@ def send_briefing(edition: str = "Morning", fetch: bool = False, no_send: bool =
         log("Email send failed: %s" % exc)
         return {"sent": False, "edition": edition, "model": built["model"], "error": str(exc)}
     if sent:
-        db.mark_alerted([today], scope)  # confirmed-delivery mark: dedupe + watchdog heartbeat
+        try:
+            db.mark_alerted([today], scope)  # confirmed-delivery mark: dedupe + watchdog heartbeat
+        except Exception as exc:  # noqa: BLE001
+            log("Delivery mark failed (%s) — email WAS sent; watchdog may not see it." % exc)
         log("Emailed via %s to %s" % (mailer.backend(), ", ".join(to)))
     else:
         log("Email not sent (backend unconfigured).")

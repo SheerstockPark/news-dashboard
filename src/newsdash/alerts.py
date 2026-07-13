@@ -12,8 +12,9 @@ Fail-soft and gated. Email goes through the provider-agnostic mailer (Resend or 
 import html
 import json
 import os
-from datetime import datetime, timezone
-from typing import Dict, List
+import re
+from datetime import datetime, timedelta, timezone
+from typing import Dict, List, Tuple
 
 import requests
 
@@ -21,18 +22,29 @@ from . import DATA_DIR, db, email_render, mailer
 
 STATE_PATH = DATA_DIR / "alerts_state.json"  # Telegram-feed dedupe (run_once); urgent path uses the DB
 
-# Shock terms that make a headline "urgent" even if its oil-relevance score is moderate —
-# geopolitical / macro / market ruptures the principal would want pinged on intra-day.
-# Matched with WORD BOUNDARIES against the TITLE only — a substring match once fired on
-# "award" (contains "war"). Generic ongoing-coverage words ("war", "attack") are deliberately
-# absent: routine war reporting belongs in the briefing, not an urgent ping.
+# Rupture terms for the urgent path — matched with WORD BOUNDARIES against the TITLE only
+# (a substring match once fired on "award" ⊃ "war"). Curated HARD 2026-07-13 after the user
+# reported far too many urgent emails: everything that appears in routine daily coverage is
+# out (missile, airstrike, drone strike, sanctions, opec, spr, ceasefire, downgrade — those
+# belong in the briefings). What remains is the vocabulary of genuine market ruptures.
 URGENT_KEYWORDS = [
-    "invasion", "invades", "declares war", "missile", "airstrike", "air strike",
-    "drone strike", "nuclear", "ceasefire", "sanctions", "sanction", "embargo", "blockade",
-    "hormuz", "strait", "coup", "assassinat", "opec", "spr", "state of emergency",
-    "default", "collapse", "crash", "plunge", "plunges", "halts trading", "circuit breaker",
-    "shutdown", "rate cut", "rate hike", "downgrade", "bankrupt", "force majeure",
+    "invasion", "invades", "declares war", "declaration of war", "nuclear",
+    "hormuz", "blockade", "embargo", "no-fly zone", "martial law",
+    "coup", "assassinat", "state of emergency", "emergency meeting",
+    "force majeure", "halts production", "production halted",
+    "default", "defaults", "bankruptcy", "collapse", "collapses",
+    "crash", "crashes", "plunge", "plunges", "halts trading", "trading halted",
+    "circuit breaker", "capital controls", "shutdown",
+    # Fed DECISIONS, not chatter — "rate hike/cut" alone matched every speculation piece
+    # ("rate hike bets", "could mean a rate hike"). Decision headlines are verb-led.
+    "raises rates", "cuts rates", "hikes rates", "emergency rate",
 ]
+
+# Sources whose *pronouncements* the desk wants first — Trump's raw Truth Social feed and
+# the Google News voice sweeps (see config/sources.yaml). Matched as substrings of the
+# lower-cased source_name. These get a deliberately lower urgent bar (user 2026-07-13:
+# "focus more on outlets such as Truth Social").
+VOICE_SOURCES = ("truth social", "trump says", "fed speak", "musk / x")
 
 
 def _env(name, default=""):
@@ -155,11 +167,14 @@ def run_once(min_relevance=70, min_impact=60, keywords=None, limit=200, log=None
 # ---------------------------------------------------------------------------
 
 def _urgent_qualifies(a: Dict, min_relevance: int, min_impact: int, keywords: List[str]) -> bool:
-    """Three ways in, all with an oil/desk-relevance floor; opinion & sport never qualify.
+    """BIG headlines only; opinion & sport never qualify.
 
-    Tuned against live data 2026-07-04: the previous version (substring keywords over
-    title+summary, no relevance floor on the impact path) matched ~90 stories/day in a hot
-    week — "award" contains "war". Target is a handful of genuinely big pings per day.
+    Retuned 2026-07-13 after the user reported far too many urgent emails (the 2026-07-04
+    rules still admitted routine coverage via the keyword+rel55 path). Three ways in:
+      A) a rupture keyword in the TITLE of a clearly relevant story (rel >= min_relevance);
+      B) an extreme directional shock (|impact| >= min_impact) on a relevant story (rel >= 60);
+      C) a market-relevant pronouncement from a voice feed (Truth Social, Trump-says,
+         Fed-speak, Musk-X) — deliberately lower bar: the desk wants these first.
     """
     import re
 
@@ -168,21 +183,26 @@ def _urgent_qualifies(a: Dict, min_relevance: int, min_impact: int, keywords: Li
     title = a.get("title") or ""
     if tagging._OFF_TOPIC.search(title):  # noqa: SLF001 — same-package heuristic
         return False
+    # Question headlines are analysis/explainers, never ruptures ("Will OPEC intervene
+    # again?", "Should you still buy oil stocks?") — ruptures are declarative. Check before
+    # the "- Outlet" suffix, where Google News hides the question mark.
+    if title.rsplit(" - ", 1)[0].rstrip().endswith("?"):
+        return False
     t = title.lower()
     kw_hit = bool(keywords) and any(
         re.search(r"\b" + re.escape(k) + r"\b", t) for k in keywords)
     rel = a.get("relevance", 0)
     shock = abs(a.get("impact_score", 0))
 
-    # Topical alone isn't urgent — a high-relevance story must ALSO read as a shock
-    # (strong directional impact or a shock keyword in the title).
-    if rel >= min_relevance and (shock >= 50 or kw_hit):
+    # A) Rupture word in the title of a clearly relevant story.
+    if kw_hit and rel >= min_relevance:
         return True
-    # Very strong directional read on a solidly relevant story.
-    if shock >= min_impact and a.get("impact") != "neutral" and rel >= 40:
+    # B) Extreme directional read on a relevant story.
+    if shock >= min_impact and a.get("impact") != "neutral" and rel >= 60:
         return True
-    # Shock keyword in the title of a clearly relevant story.
-    if kw_hit and rel >= 55:
+    # C) Voice-feed pronouncement that reads market-relevant.
+    src = (a.get("source_name") or "").lower()
+    if any(v in src for v in VOICE_SOURCES) and rel >= 60 and (shock >= 40 or kw_hit):
         return True
     return False
 
@@ -229,24 +249,129 @@ def _urgent_email_html(items: List[Dict], now: datetime) -> str:
                            now.strftime("%H:%M UTC &middot; %a %d %b"), rows)
 
 
-def run_urgent(min_relevance: int = 78, min_impact: int = 72, keywords: List[str] = None,
+URGENT_STATE_PATH = DATA_DIR / "urgent_state.json"
+
+# One big story arrives as dozens of near-identical headlines from 57 feeds. These control
+# the echo-storm: similar titles collapse to the strongest version inside a batch, echoes of
+# stories alerted in the last day are suppressed entirely, and an email carries at most
+# URGENT_MAX_ITEMS distinct stories (the rest wait, unmarked, for the next window).
+URGENT_MAX_ITEMS = 8
+_ECHO_SUPPRESS_HOURS = 24
+_TITLE_STOPWORDS = frozenset(
+    "a an the of to in on at as and or for with by from after amid over into its his her "
+    "their our your says said say saying us will would could may might be is are was were "
+    "has have had new latest breaking live update updates news report reports".split())
+
+
+# Headline verbs that outlets swap freely for the same event — folded before matching so
+# "Iran shuts Hormuz, shipping halted" reads as an echo of "Iran closes Hormuz". Direction
+# reversals stay safe: _same_story() refuses to merge opposite bullish/bearish reads.
+_TITLE_SYNONYMS = {
+    "shut": "close", "shuts": "close", "shutting": "close",
+    "halt": "close", "halts": "close", "halted": "close",
+    "reopen": "open", "reopens": "open", "reopened": "open",
+    "resume": "open", "resumes": "open", "resumed": "open",
+    "restart": "open", "restarts": "open", "restarted": "open",
+}
+
+
+def _title_tokens(title: str) -> frozenset:
+    """4-char prefix signatures of the meaningful title words — outlets rephrase the same
+    story with different morphology (closes/closure/closed), and prefixes ride over that."""
+    t = (title or "").split(" - ")[0].lower()  # drop the trailing "- Outlet" suffix
+    words = (_TITLE_SYNONYMS.get(w, w) for w in re.findall(r"[a-z0-9']+", t))
+    return frozenset(w[:4] for w in words if w not in _TITLE_STOPWORDS and len(w) > 2)
+
+
+def _similar_titles(t1: str, t2: str) -> bool:
+    a, b = _title_tokens(t1), _title_tokens(t2)
+    if not a or not b:
+        return False
+    inter = len(a & b)
+    return inter / len(a | b) >= 0.5 or inter >= 0.8 * min(len(a), len(b))
+
+
+def _same_story(a_title: str, a_impact: str, b_title: str, b_impact: str) -> bool:
+    """Similar wording AND not a directional reversal — 'Hormuz reopens' must never be
+    swallowed as an echo of 'Hormuz closes' (they share tokens but opposite market impact)."""
+    if {a_impact, b_impact} == {"bullish", "bearish"}:
+        return False
+    return _similar_titles(a_title, b_title)
+
+
+def _cluster_batch(items: List[Dict]) -> Tuple[List[Dict], List[Dict]]:
+    """Collapse near-duplicate headlines: returns (representatives, duplicates).
+
+    Strongest version of each story (relevance, then |impact|) represents the cluster."""
+    ranked = sorted(items, key=lambda a: (a.get("relevance", 0),
+                                          abs(a.get("impact_score", 0))), reverse=True)
+    reps, dups = [], []
+    for a in ranked:
+        if any(_same_story(a["title"], a.get("impact", ""), r["title"], r.get("impact", ""))
+               for r in reps):
+            dups.append(a)
+        else:
+            reps.append(a)
+    return reps, dups
+
+
+def _load_urgent_state():
+    """File-backed urgent state, or None if it doesn't exist yet (=> baseline silently).
+
+    On GitHub runners the file survives between ephemeral jobs via actions/cache — see
+    .github/workflows/urgent-loop.yml. Shape: {"sent": [ids...], "last_email_at": iso|null}.
+    """
+    try:
+        return json.loads(URGENT_STATE_PATH.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return None
+
+
+def _save_urgent_state(state: Dict) -> None:
+    DATA_DIR.mkdir(parents=True, exist_ok=True)
+    state["sent"] = list(state["sent"])[-5000:]
+    URGENT_STATE_PATH.write_text(json.dumps(state), encoding="utf-8")
+
+
+def run_urgent(min_relevance: int = 70, min_impact: int = 80, keywords: List[str] = None,
                limit: int = 200, log=None) -> Dict:
     """Email a batch of newly-qualifying *very big* headlines. First run baselines silently.
 
-    Dedupe state lives in the DB (db.alert_state, scope='urgent') so it survives the ephemeral
-    CI runners the cron runs on — a local file would re-baseline every run and never send.
+    Dedupe state: Turso (db.alert_state, scope='urgent') when TURSO_* env is set, else the
+    local file above. The GitHub urgent loop deliberately runs WITHOUT Turso credentials
+    since 2026-07-13 — its every-60s polling burned through the free-tier read quota and got
+    the whole database read-blocked. Articles then come from the runner-local SQLite that
+    --fetch fills, and state continuity comes from actions/cache.
     """
     log = log or (lambda *_: None)
     if not mailer.configured():
         return {"sent": 0, "channel": "none", "note": "no email backend (set RESEND_API_KEY or SMTP_*)"}
 
-    db.init_db()  # ensure alert_state table exists (idempotent)
+    use_db = db.using_turso()
     kw = URGENT_KEYWORDS if keywords is None else [k.strip().lower() for k in keywords if k.strip()]
-    already = db.alerted_ids("urgent")
+
+    if use_db:
+        db.init_db()  # ensure alert_state table exists (idempotent)
+        already = db.alerted_ids("urgent")
+        first_run = not already
+        last = db.last_sent("urgent")
+        state = None
+    else:
+        state = _load_urgent_state()
+        first_run = state is None
+        state = state if state is not None else {"sent": [], "last_email_at": None}
+        already = set(state["sent"])
+        last = state.get("last_email_at")
+
     pool = db.query_articles(limit=limit, min_relevance=0)
 
-    if not already:  # first run on a fresh DB: baseline the backlog, don't blast it
-        db.mark_alerted([a["id"] for a in pool], "urgent")
+    if first_run:  # fresh state: baseline the backlog, don't blast it
+        ids = [a["id"] for a in pool]
+        if use_db:
+            db.mark_alerted(ids, "urgent")
+        else:
+            state["sent"] = list(already.union(ids))
+            _save_urgent_state(state)
         log("Baselined %d existing articles (no urgent email on first run)." % len(pool))
         return {"sent": 0, "channel": "email", "note": "baselined"}
 
@@ -256,11 +381,41 @@ def run_urgent(min_relevance: int = 78, min_impact: int = 72, keywords: List[str
         return {"sent": 0, "channel": "email", "candidates": 0}
 
     now = datetime.now(timezone.utc)
-    # Cooldown: at most one urgent email per URGENT_COOLDOWN_MIN minutes (default 60). During
+
+    # Echo suppression (file mode): a story we already alerted on keeps arriving reworded
+    # from other outlets for hours — those echoes are seen-and-buried, never re-alerted.
+    echo_ids: List[str] = []
+    if state is not None:
+        cutoff = (now - timedelta(hours=_ECHO_SUPPRESS_HOURS)).isoformat()
+        # entries: [sent_at_iso, title, impact]
+        recent = [e for e in state.get("recent_titles", []) if e and e[0] >= cutoff][-200:]
+        state["recent_titles"] = recent
+        echoes = [a for a in fresh
+                  if any(_same_story(a["title"], a.get("impact", ""), e[1],
+                                     e[2] if len(e) > 2 else "") for e in recent)]
+        if echoes:
+            echo_ids = [a["id"] for a in echoes]
+            state["sent"].extend(echo_ids)
+            _save_urgent_state(state)
+            log("echo-suppressed %d headline(s) (story already alerted)" % len(echoes))
+            fresh = [a for a in fresh if a["id"] not in set(echo_ids)]
+            if not fresh:
+                return {"sent": 0, "channel": "email", "candidates": 0, "note": "echoes only"}
+
+    # Collapse the batch to distinct stories; duplicates ride along as marked-seen.
+    reps, dups = _cluster_batch(fresh)
+    if len(reps) > URGENT_MAX_ITEMS:  # beyond-wild day: the rest wait for the next window
+        log("capping batch at %d distinct stories (%d held for next window)"
+            % (URGENT_MAX_ITEMS, len(reps) - URGENT_MAX_ITEMS))
+        reps = reps[:URGENT_MAX_ITEMS]
+    fresh = reps
+    dup_ids = [a["id"] for a in dups
+               if any(_same_story(a["title"], a.get("impact", ""), r["title"],
+                                  r.get("impact", "")) for r in reps)]
+    # Cooldown: at most one urgent email per URGENT_COOLDOWN_MIN minutes (default 120). During
     # a hot news run, candidates accumulate unmarked and go out as ONE batch when the window
     # reopens — the inbox gets periodic digests of the storm, not a drip-feed of pings.
-    cooldown_min = int(_env("URGENT_COOLDOWN_MIN") or "60")
-    last = db.last_sent("urgent")
+    cooldown_min = int(_env("URGENT_COOLDOWN_MIN") or "120")
     if last and cooldown_min > 0:
         try:
             last_dt = datetime.fromisoformat(last)
@@ -285,7 +440,15 @@ def run_urgent(min_relevance: int = 78, min_impact: int = 72, keywords: List[str
         log("  [FAIL] %s" % exc)
         ok = False
     if ok:
-        db.mark_alerted([a["id"] for a in fresh], "urgent")
+        ids = [a["id"] for a in fresh] + dup_ids  # bury each sent story's echoes with it
+        if use_db:
+            db.mark_alerted(ids, "urgent")
+        else:
+            state["sent"].extend(ids)
+            state["last_email_at"] = now.isoformat()
+            state.setdefault("recent_titles", []).extend(
+                [now.isoformat(), a["title"], a.get("impact", "")] for a in fresh)
+            _save_urgent_state(state)
         for a in fresh:
             log("  [urgent] %s" % a["title"][:70])
     return {"sent": len(fresh) if ok else 0, "channel": "email",

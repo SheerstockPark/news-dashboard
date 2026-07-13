@@ -1,26 +1,23 @@
 name: Urgent headline alerts → Neil
 
-# Intra-day watchdog: every 15 min it checks the freshly-ingested headlines and emails Neil
-# only the *very big* ones (high relevance, strong impact, or a shock keyword — cross-asset,
-# not oil-only). Dedupe lives in the Turso DB so each story emails at most once. The first
-# run on a fresh DB baselines the backlog silently (no blast).
+# Manual one-shot urgent sweep. The */15 schedule is RETIRED (2026-07-13): it coordinated
+# with the urgent loop through Turso dedupe, and Turso's free-tier read quota is exhausted
+# (reads blocked). The loop (urgent-loop.yml) is now self-contained with file+cache state;
+# this workflow remains as a manually-triggered single sweep sharing that same state and
+# concurrency group, so it can never race the loop or double-send.
 on:
-  # Runs ALONGSIDE the always-on worker (tools/worker.py): the worker gives ~1-min alerts when
-  # its host is healthy; this cron is the independent backup sweep (GitHub runners can send
-  # SMTP; some PaaS hosts block it). Per-article dedupe in Turso means the two paths can never
-  # double-send — whichever sees a story first sends it, the other skips.
-  schedule:
-    - cron: "*/15 * * * *"
+  # schedule:                    # retired — see note above
+  #   - cron: "*/15 * * * *"
   workflow_dispatch: {}
 
 concurrency:
-  group: urgent-alerts
+  group: urgent-loop
   cancel-in-progress: false
 
 jobs:
   alerts:
     runs-on: ubuntu-latest
-    timeout-minutes: 6
+    timeout-minutes: 8
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -29,10 +26,15 @@ jobs:
           cache: pip
       - name: Install dependencies
         run: pip install -r requirements-brief.txt
-      - name: Email very-big headlines
+      - name: Restore urgent dedupe state
+        uses: actions/cache/restore@v4
+        with:
+          path: data/db/urgent_state.json
+          key: urgent-state-${{ github.run_id }}
+          restore-keys: |
+            urgent-state-
+      - name: Email very-big headlines (single sweep)
         env:
-          TURSO_DATABASE_URL: ${{ secrets.TURSO_DATABASE_URL }}
-          TURSO_AUTH_TOKEN: ${{ secrets.TURSO_AUTH_TOKEN }}
           RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
           DIGEST_TO: ${{ secrets.DIGEST_TO }}
           DIGEST_FROM: ${{ secrets.DIGEST_FROM }}
@@ -40,4 +42,10 @@ jobs:
           SMTP_PORT: ${{ secrets.SMTP_PORT }}
           SMTP_USER: ${{ secrets.SMTP_USER }}
           SMTP_PASS: ${{ secrets.SMTP_PASS }}
-        run: python tools/run_alerts.py --urgent
+        run: python tools/run_alerts.py --urgent --fetch
+      - name: Save urgent dedupe state
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: data/db/urgent_state.json
+          key: urgent-state-${{ github.run_id }}

@@ -100,7 +100,14 @@ _BEAR_PAT = [(re.compile(r"\b" + re.escape(k) + r"\b", re.IGNORECASE), w) for k,
 _OFF_TOPIC = re.compile(
     r"\b(world cup|quarterfinal|semifinal|semi-final|quarter-final|tournament|premier league|"
     r"champions league|fifa|uefa|olympic|grand slam|wimbledon|box office|film|movie|album|"
-    r"recipe|horoscope|obituary|opinion|op-ed|editorial|explainer)\b", re.IGNORECASE)
+    r"recipe|horoscope|obituary|opinion|op-ed|editorial|explainer|"
+    # local traffic accidents reuse market words ("Lanes reopen along Brent Spence Bridge
+    # after multivehicle crash" once qualified as urgent — "Brent" + "crash")
+    r"lanes? reopen|car crash|multivehicle|multi-vehicle|pile-up|road closure|interstate \d|"
+    # listicle / explainer / stock-picking phrasing is never a rupture
+    r"what you need to know|what to know|should you buy|how would that work|explained|"
+    r"stocks? to (?:buy|watch)|below fair value|stock benefits)\b",
+    re.IGNORECASE)
 
 
 def impact(title: str, summary: str = "") -> Tuple[str, int]:

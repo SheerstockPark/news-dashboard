@@ -10,14 +10,17 @@
 
 | Job | Mechanism | Latency / schedule |
 |---|---|---|
-| 🚨 Urgent alerts | `.github/workflows/urgent-loop.yml` — hourly relay, each run polls every 60s for ~58 min (public repo = free unlimited runner minutes) | ~1 min |
-| 🚨 Urgent backup | `.github/workflows/alerts.yml` — independent */15 sweep covering relay gaps | ≤15 min |
+| 🚨 Urgent alerts | `.github/workflows/urgent-loop.yml` — relay crons :07/:27/:47 (extras queue-cancel in one concurrency group; GitHub drops single crons), each run polls feeds every 60s for ~58 min into a **runner-local SQLite — deliberately NO Turso** (60s DB polling exhausted the Turso free-tier read quota 2026-07-11 → whole DB read-blocked). Dedupe/cooldown state = `data/db/urgent_state.json` via actions/cache; big-headlines-only rules + echo-storm clustering (≤8 distinct stories/email, ≤1 email per `URGENT_COOLDOWN_MIN`, default 120) | ~1 min |
+| 🚨 Urgent backup | `.github/workflows/alerts.yml` — schedule RETIRED 2026-07-13 (needed Turso to coordinate); kept as a manual one-shot sweep sharing the loop's cache state + concurrency group | manual |
 | 🌅🌆 Briefings | Scheduled Claude routines (subscription, no API credit) write the prose → dispatch `briefing.yml` → GitHub runner emails via SMTP. See `docs/ROUTINES.md` + `docs/routine-prompts/` | 06:00 / 20:00 UK |
 | 📄 Weekly Desk Review | Same routine mechanism, `edition=Weekly` | Sat 09:00 UK |
 | 🐕 Watchdog | `.github/workflows/watchdog.yml` — fails loudly if no confirmed delivery in 26h | 2×/day |
 
-Safety properties: every sender marks confirmed deliveries in Turso (`alert_state`), so any
-combination of senders is double-send-proof, and the watchdog reads the same marks.
+Safety properties: briefing senders mark confirmed deliveries in Turso (`alert_state`) when it
+is reachable — and since 2026-07-13 they fail-soft when it isn't (send anyway, skip the mark).
+Urgent alerts are self-contained: file+cache state, silent re-baseline if the cache is ever
+lost (no backlog blast). Turso remains the archive behind the dashboard and the briefings'
+top-stories links; `ingest.yml` reruns will go green again when the read quota resets.
 
 ## If an always-on host is ever wanted again
 

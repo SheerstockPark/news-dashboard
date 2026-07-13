@@ -1,16 +1,25 @@
 name: Urgent alerts — near-instant loop
 
 # Free replacement for a paid always-on worker: this repo is public, so GitHub-hosted runners
-# are free — each hourly run polls the feeds every 60s for ~58 minutes, then exits cleanly and
-# the next scheduled run takes over. Result: ~1-minute urgent-alert latency at £0.
+# are free — each run polls the feeds every 60s for ~58 minutes, then exits cleanly and the
+# next scheduled run takes over. Result: ~1-minute urgent-alert latency at £0.
 #
-# Resilience layers (all deduped in Turso, so overlaps never double-send):
-#   * concurrency group queues the next run until the current one ends — seamless handover.
-#   * If GitHub delays an hourly start, alerts.yml's */15 sweep covers the gap.
-#   * One bad tick inside the loop logs and continues (see run_alerts.py).
+# ⚠️ Deliberately NO Turso credentials (2026-07-13): the loop's every-60s DB polling burned
+# through the Turso free-tier read quota and got the whole database read-blocked. The loop is
+# now self-contained: feeds → runner-local SQLite → qualify → email. Dedupe + cooldown state
+# lives in data/urgent_state.json, carried between ephemeral runners by actions/cache.
+#
+# Resilience layers:
+#   * three staggered crons — GitHub silently drops/delays schedules (observed: one hourly
+#     cron fired ~4x/day); extras queue-cancel harmlessly under the concurrency group.
+#   * concurrency group runs one loop at a time — no state races, seamless handover.
+#   * a fresh runner with no cached state baselines silently (no backlog blast).
+#   * one bad tick inside the loop logs and continues (see run_alerts.py).
 on:
   schedule:
-    - cron: "7 * * * *"   # hourly relay, staggered off the ingest/alerts crons
+    - cron: "7 * * * *"
+    - cron: "27 * * * *"
+    - cron: "47 * * * *"
   workflow_dispatch: {}
 
 concurrency:
@@ -29,10 +38,15 @@ jobs:
           cache: pip
       - name: Install dependencies
         run: pip install -r requirements-brief.txt
+      - name: Restore urgent dedupe state
+        uses: actions/cache/restore@v4
+        with:
+          path: data/db/urgent_state.json
+          key: urgent-state-${{ github.run_id }}
+          restore-keys: |
+            urgent-state-
       - name: Poll urgent headlines (60s interval, ~58 min, then hand over)
         env:
-          TURSO_DATABASE_URL: ${{ secrets.TURSO_DATABASE_URL }}
-          TURSO_AUTH_TOKEN: ${{ secrets.TURSO_AUTH_TOKEN }}
           RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
           DIGEST_TO: ${{ secrets.DIGEST_TO }}
           DIGEST_FROM: ${{ secrets.DIGEST_FROM }}
@@ -50,3 +64,9 @@ jobs:
             exit 0
           fi
           exit $code
+      - name: Save urgent dedupe state
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: data/db/urgent_state.json
+          key: urgent-state-${{ github.run_id }}

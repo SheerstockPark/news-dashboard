@@ -49,11 +49,11 @@ def main() -> int:
             ingest.run_once()
         if args.urgent:
             kw = {} if args.keywords is None else {"keywords": args.keywords}
-            s = alerts.run_urgent(
-                min_relevance=args.min_relevance if args.min_relevance is not None else 78,
-                min_impact=args.min_impact if args.min_impact is not None else 72,
-                log=lambda m: print(m), **kw,
-            )
+            if args.min_relevance is not None:
+                kw["min_relevance"] = args.min_relevance
+            if args.min_impact is not None:
+                kw["min_impact"] = args.min_impact
+            s = alerts.run_urgent(log=lambda m: print(m), **kw)
             print("Urgent: %d emailed via %s%s"
                   % (s["sent"], s.get("backend", s["channel"]),
                      (" (%s)" % s["note"]) if s.get("note") else ""))
