@@ -36,6 +36,7 @@ jobs:
         # Capture the traceback to a committed file — the repo owner analyses results locally
         # and unauthenticated API access can't read Actions logs, so errors must travel by git.
         run: |
+          touch docs/urgent-audit-error.txt
           python tools/audit_urgent.py --since 2026-07-05 --out docs/urgent-audit.json \
             2> docs/urgent-audit-error.txt || true
           if [ -s docs/urgent-audit-error.txt ]; then cat docs/urgent-audit-error.txt; fi
@@ -43,7 +44,8 @@ jobs:
         run: |
           git config user.name "sheerstock-audit"
           git config user.email "actions@users.noreply.github.com"
-          git add -f docs/urgent-audit.json docs/urgent-audit-error.txt 2>/dev/null || true
+          git add -f docs/urgent-audit-error.txt || true
+          git add -f docs/urgent-audit.json || true
           git commit -m "Urgent-alert audit data (auto)" || { echo "no changes"; exit 0; }
           git pull --rebase origin main
           git push origin main
