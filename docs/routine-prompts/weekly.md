@@ -29,7 +29,10 @@ Quality reference: docs/week-in-review-2026-07-04.html in this repo is the hand-
 edition — match its analytical altitude (e.g. "gold refusing to believe the peace", "the most
 under-priced bullish tail"). Rules: never invent facts or numbers not in your gathered data;
 collapse duplicate coverage; if price data failed, write the review without numbers rather
-than guessing.
+than guessing. If pronouncements moved the week's tape — a Trump Truth Social post (source
+"Truth Social (Trump)"), Fed speak, a Musk/X market-mover (the "Google News · … voice" feeds)
+— give that its own theme section (e.g. "**🗣 Theme · The week the tape traded on posts**"),
+quoting the actual line and what it did to price.
 
 5) DELIVER — try in this order:
 a) Save the prose to /tmp/weekly.md, then:

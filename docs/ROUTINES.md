@@ -38,8 +38,11 @@ cron +1h to keep 06:00/20:00/09:00 UK landings.
    query the freshest ~120 via `newsdash.db.query_articles`.
 3. **Prices** (best effort) — yfinance: BZ=F, CL=F, ^GSPC, ^IXIC, ^VIX, DX-Y.NYB, GC=F.
 4. **Write** — sections, in order: **⚡ Desk Take / 📰 Top Headlines / 🛢 Energy & Fuel /
-   🌍 Geopolitics / 📊 Macro & Rates / 📈 Market Movers / 🛡 Reserves & Inventories /
-   👀 On the Radar** (bold headers, dash bullets, no title/preamble/code fences).
+   🌍 Geopolitics / 🗣 Voices / 📊 Macro & Rates / 📈 Market Movers /
+   🛡 Reserves & Inventories / 👀 On the Radar** (bold headers, dash bullets, no
+   title/preamble/code fences). **🗣 Voices** = what market-movers actually said — Trump's
+   raw Truth Social posts + the Google News voice sweeps (Trump says / Fed speak / Musk-X);
+   quote the line, give the desk read, omit the section when quiet.
    Quality bar (see reports/briefing-20260704-evening.html for the reference sample):
    - **⚡ Desk Take** = 1–2 sentences, the single most important tension of the day (what's
      supporting price vs what's capping it) + a posture cue. This is what gets read on a phone.

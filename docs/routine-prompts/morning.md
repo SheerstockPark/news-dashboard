@@ -20,6 +20,7 @@ nothing else (no title, no preamble, no code fences):
 **📰 Top Headlines**
 **🛢 Energy & Fuel**
 **🌍 Geopolitics**
+**🗣 Voices**
 **📊 Macro & Rates**
 **📈 Market Movers**
 **🛡 Reserves & Inventories**
@@ -34,6 +35,12 @@ Quality bar:
   duplicate coverage of one story into its strongest version.
 - Call out divergences and second-order reads (products vs crude, rotation vs risk-off, gold vs
   the calm) — this is the layer a wire dump never gives.
+- **🗣 Voices** = what the people who move markets actually SAID, from the dedicated feeds:
+  source "Truth Social (Trump)" carries Trump's raw posts; "Google News · Trump says",
+  "· Fed speak" and "· Musk / X posts" catch the wire echo of X/podium remarks. Quote the
+  key line (short, in quotes) then give the desk read: tradeable signal or noise, and for
+  which market. 1–3 bullets max; if the tape was quiet overnight, OMIT the section — never
+  pad it with routine commentary ABOUT these people, only their own words/posts.
 - Morning = day-ahead framing: what happened overnight, what today brings. If markets are
   closed (weekend/holiday), say so and frame accordingly.
 - NEVER invent facts not present in the gathered headlines/prices. If prices failed, write
