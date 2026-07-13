@@ -1,0 +1,8 @@
+Traceback (most recent call last):
+  File "/home/runner/work/news-dashboard/news-dashboard/tools/audit_urgent.py", line 64, in <module>
+    sys.exit(main())
+             ^^^^^^
+  File "/home/runner/work/news-dashboard/news-dashboard/tools/audit_urgent.py", line 35, in main
+    sent = conn.execute(
+           ^^^^^^^^^^^^^
+ValueError: Hrana: `stream error: `Error { message: "Operation was blocked: SQL read operations are forbidden (reads are blocked, do you need to upgrade your plan?)", code: "BLOCKED" }``
