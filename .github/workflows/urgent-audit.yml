@@ -1,0 +1,43 @@
+name: Urgent-alert audit (one-shot)
+
+# Dumps the urgent-alert send history + article pool from the cloud DB to
+# docs/urgent-audit.json and commits it, so thresholds can be retuned locally on real data.
+# Fires on pushes that touch the audit script (self-triggering: push the script, get the data).
+on:
+  push:
+    paths:
+      - "tools/audit_urgent.py"
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+concurrency:
+  group: urgent-audit
+  cancel-in-progress: false
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - name: Install dependencies
+        run: pip install -r requirements-brief.txt
+      - name: Dump send history + pool
+        env:
+          TURSO_DATABASE_URL: ${{ secrets.TURSO_DATABASE_URL }}
+          TURSO_AUTH_TOKEN: ${{ secrets.TURSO_AUTH_TOKEN }}
+        run: python tools/audit_urgent.py --since 2026-07-05 --out docs/urgent-audit.json
+      - name: Commit results
+        run: |
+          git config user.name "sheerstock-audit"
+          git config user.email "actions@users.noreply.github.com"
+          git add docs/urgent-audit.json
+          git commit -m "Urgent-alert audit data (auto)" || { echo "no changes"; exit 0; }
+          git pull --rebase origin main
+          git push origin main
