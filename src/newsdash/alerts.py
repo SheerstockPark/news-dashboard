@@ -193,29 +193,40 @@ def _urgent_email_html(items: List[Dict], now: datetime) -> str:
         imp = a.get("impact")
         badge = ""
         if imp == "bullish":
-            badge = '<span style="background:#16c784;color:#04130d;border-radius:4px;padding:1px 7px;font-size:11px;font-weight:800">BULLISH</span>'
+            badge = (' &middot; <span style="background:#16c784;color:#04130d;border-radius:4px;'
+                     'padding:1px 7px;font-size:11px;font-weight:800">&#9650; BULLISH</span>')
         elif imp == "bearish":
-            badge = '<span style="background:#ea3943;color:#fff;border-radius:4px;padding:1px 7px;font-size:11px;font-weight:800">BEARISH</span>'
+            badge = (' &middot; <span style="background:#ea3943;color:#fff;border-radius:4px;'
+                     'padding:1px 7px;font-size:11px;font-weight:800">&#9660; BEARISH</span>')
         ago = email_render._ago(a.get("published_at") or a.get("fetched_at"), now)
         ago_chip = (" &middot; " + ago) if ago else ""
         rows += (
-            '<tr><td style="padding:12px 0;border-bottom:1px solid #1e2733">'
-            '<a href="%s" style="color:#e6edf3;text-decoration:none;font-weight:700;font-size:16px">%s</a>'
+            '<tr><td style="padding:13px 0;border-bottom:1px solid #1e2733">'
+            '<a href="%s" style="color:#e6edf3;text-decoration:none;font-weight:700;'
+            'font-size:16px;line-height:1.4">%s</a>'
             '<div style="margin-top:5px;color:#7d8b9a;font-size:12px">'
-            '<span style="color:#9fb2c4;font-weight:600">%s</span>%s &middot; '
-            '<span style="color:#ffa45c">relevance %d</span>%s</div></td></tr>'
+            '<span style="color:#9fb2c4;font-weight:600">%s</span>%s%s</div></td></tr>'
             % (html.escape(a.get("url", "")), html.escape(a["title"]),
-               html.escape(a["source_name"]), ago_chip, a.get("relevance", 0),
-               (" &middot; " + badge) if badge else "")
+               html.escape(a["source_name"]), ago_chip, badge)
         )
     return """\
-<!DOCTYPE html><html><body style="margin:0;background:#0b0f14;font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif">
-<div style="max-width:680px;margin:0 auto;padding:24px;background:#0b0f14;color:#e6edf3">
-  <div style="font-size:13px;font-weight:800;color:#ea3943;text-transform:uppercase;letter-spacing:.5px">&#128680; Urgent market headline%s</div>
-  <div style="font-size:18px;font-weight:800;margin:2px 0 14px">SHEERSTOCK&nbsp;PARK</div>
+<!DOCTYPE html><html lang="en"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="color-scheme" content="dark">
+<meta name="supported-color-schemes" content="dark">
+</head><body bgcolor="#0b0f14" style="margin:0;padding:0;background:#0b0f14;font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif">
+<div style="max-width:680px;margin:0 auto;padding:20px 22px 26px;background:#0b0f14;color:#e6edf3">
+  <div style="height:3px;background:#ea3943;border-radius:2px;margin-bottom:16px"></div>
+  <table width="100%%" cellspacing="0" cellpadding="0"><tr>
+    <td style="font-size:20px;font-weight:800;color:#e6edf3;letter-spacing:.5px">SHEERSTOCK&nbsp;PARK</td>
+    <td align="right" style="vertical-align:middle"><span style="background:#2a1215;color:#ff6b74;border:1px solid #5c1f26;border-radius:6px;padding:3px 9px;font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.6px;white-space:nowrap">&#128680; Urgent</span></td>
+  </tr></table>
+  <div style="color:#7d8b9a;font-size:13px;margin:2px 0 12px">%s market headline%s &middot; %s</div>
   <table width="100%%" cellspacing="0">%s</table>
-  <div style="color:#5b6b7a;font-size:11px;margin-top:18px">Sent because these crossed the urgent threshold &middot; %s<br>Created by Saavan Sumray-Roots.</div>
-</div></body></html>""" % ("s" if len(items) > 1 else "", rows, now.strftime("%H:%M UTC, %d %b %Y"))
+  <div style="color:#5b6b7a;font-size:11px;line-height:1.6;margin-top:18px;padding-top:12px;border-top:1px solid #1e2733">Sent within minutes of these crossing the desk's urgent threshold. Full context in the next briefing.<br>Created by Saavan Sumray-Roots.</div>
+</div></body></html>""" % (len(items), "s" if len(items) > 1 else "",
+                           now.strftime("%H:%M UTC &middot; %a %d %b"), rows)
 
 
 def run_urgent(min_relevance: int = 78, min_impact: int = 72, keywords: List[str] = None,
